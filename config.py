@@ -7,12 +7,11 @@ from log import logger
 
 class Configer:
     """配置文件管理器"""
-    addr: str = "203.135.99.2:25575"
+    addr: str = "127.0.0.1:25565"
     server_name: str = "MC服务器"
     check_inv: int = 60.0
     points_per_file: int = 1200
     saved_per_points: int = 10
-    max_plot_points: int = 1000
     fix_sep: float = 300.0
     min_online_time: int = 60
 

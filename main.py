@@ -15,6 +15,7 @@ from wx.adv import DatePickerCtrl
 from data import *
 from player_view import PlayerViewPanel
 from widget import *
+from perf import Counter
 
 mpl_rcParams["font.family"] = "Microsoft YaHei"
 plt.rcParams["axes.unicode_minus"] = False
@@ -204,7 +205,6 @@ class ConfigPanel(wx.Panel):
             "check_inv": ["检查间隔", float, config.check_inv],
             "points_per_file": ["点/文件", int, config.points_per_file],
             "saved_per_points": ["点/保存", int, config.saved_per_points],
-            "max_plot_points": ["最大绘图点数", int, config.max_plot_points],
             "min_online_time": ["最小在线时间", int, config.min_online_time],
             "fix_sep": ["数据空隙修复间隔", float, config.fix_sep],
         }
@@ -258,8 +258,13 @@ class CapList(wx.Panel):
             self.cap_list.ScrollList(0, (line - 1) * self.line_height)
 
     def points_init(self, points: list[ServerPoint]):
+        timer = Counter()
+        timer.start()
+        self.cap_list.Freeze()
         for point in points[:-1]:
             self.load_point(point)
+        self.cap_list.Thaw()
+        logger.debug(f"数据点列表初始化用时: {timer.endT()}")
         self.cap_list.ScrollList(0, (self.cap_list.GetItemCount() - 1) * self.line_height)
 
     def on_select_all(self, _):
@@ -474,8 +479,6 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.raw_datas[point.time] = point
         if self.activate_filter.check(point):
             self.datas[point.time] = point
-        if len(self.datas) > config.max_plot_points:
-            self.datas.pop(min(self.datas.keys()))
         if not fix_add:
             self.last_point_time = point.time
 
