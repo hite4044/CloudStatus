@@ -5,8 +5,8 @@ from os import listdir, remove, mkdir
 from os.path import join
 from random import randbytes
 
-from config import *
-from log import logger
+from lib.config import *
+from lib.log import logger
 
 MAX_SIZE = (windll.user32.GetSystemMetrics(0), windll.user32.GetSystemMetrics(1))
 

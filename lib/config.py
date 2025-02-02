@@ -2,7 +2,7 @@ import json
 from os.path import exists
 from typing import Any, Callable
 
-from log import logger
+from lib.log import logger
 
 
 class Configer:
@@ -26,11 +26,11 @@ class Configer:
 
     def load(self):
         """加载配置文件"""
-        if not exists("config.json"):
+        if not exists("./config.json"):
             self.save()
         else:
             logger.info("读取配置文件...")
-            with open("config.json", "r", encoding="utf-8") as f:
+            with open("./config.json", "r", encoding="utf-8") as f:
                 cfg_dict: dict = json.load(f)
                 for key, value in cfg_dict.items():
                     self.config_vars[key] = value
@@ -39,7 +39,7 @@ class Configer:
     def save(self):
         """保存配置文件"""
         logger.info("保存配置文件...")
-        with open("config.json", "w") as f:
+        with open("./config.json", "w") as f:
             f.write(json.dumps(self.config_vars, indent=4))
 
     def set_value(self, key: str, value: Any):
