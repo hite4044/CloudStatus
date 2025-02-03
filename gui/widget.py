@@ -179,3 +179,38 @@ class TimeSelector(wx.Panel):
             return correct, correct + timedelta(hours=1)
         else:
             return correct, correct + timedelta(days=1)
+
+
+class ToolTip(wx.Frame):
+    def __init__(self, parent: wx.Window, text: str):
+        super().__init__(parent, style=wx.FRAME_TOOL_WINDOW | wx.FRAME_FLOAT_ON_PARENT)
+        self.SetFont(parent.GetFont())
+        self.label = wx.StaticText(self, label=text)
+        self.parent = parent
+        parent.Bind(wx.EVT_MOTION, self.on_mouse_move)
+        self.label.Bind(wx.EVT_MOTION, self.on_mouse_move)
+
+    def on_mouse_move(self, event: wx.MouseEvent):
+        if event.GetEventObject() == self.label:
+            m_x, m_y = wx.GetMousePosition()
+            x, y = m_x-self.parent.ScreenPosition[0], m_y-self.parent.ScreenPosition[1]
+            event.SetPosition(wx.Point(x, y))
+            event.SetEventObject(self.parent)
+            self.parent.ProcessEvent(event)
+        self.SetPosition(wx.GetMousePosition())
+        event.Skip()
+
+    def set_tip(self, tip: str = None):
+        if tip is None:
+            self.Hide()
+        else:
+            self.Show()
+        self.Freeze()
+        self.label.SetLabel(tip)
+        dc = wx.ClientDC(self)
+        dc.SetFont(self.parent.GetFont())
+        w, h = dc.GetMultiLineTextExtent(tip)
+        w += 3
+        self.SetSize(wx.Size(w, h))
+        self.label.SetSize(self.GetSize())
+        self.Thaw()

@@ -1,4 +1,5 @@
 from time import localtime, strftime, time
+from bisect import bisect_right
 
 from matplotlib import pyplot as plt
 from matplotlib import rcParams as mpl_rcParams
@@ -6,6 +7,7 @@ from matplotlib.backends import backend_wxagg as wxagg
 from matplotlib.dates import DateFormatter
 from matplotlib.figure import Figure
 from matplotlib.ticker import Formatter
+from matplotlib.transforms import TransformedBbox
 
 from gui.events import *
 from gui.widget import *
@@ -90,6 +92,23 @@ class CapList(wx.Panel):
         self.cap_list.InsertItem(0, "Get Line Height")
         self.line_height = self.cap_list.GetItemRect(0).height
         self.cap_list.DeleteItem(0)
+        self.cap_list.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_item_menu)
+
+    def on_item_menu(self, event: wx.ListEvent):
+        item = event.GetIndex()
+        if item >= 0:
+            def copy_data(column: int):
+                text = self.cap_list.GetItem(item, column).GetText()
+                wx.TheClipboard.SetData(wx.TextDataObject(text))
+
+            menu = wx.Menu()
+            line: wx.MenuItem = menu.Append(-1, "复制时间")
+            menu.Bind(wx.EVT_MENU, lambda e: copy_data(1), id=line.GetId())
+            line: wx.MenuItem = menu.Append(-1, "复制玩家列表")
+            menu.Bind(wx.EVT_MENU, lambda e: copy_data(3), id=line.GetId())
+            self.PopupMenu(menu, event.GetPoint())
+        else:
+            event.Skip()
 
     def load_point(self, point: ServerPoint, runtime_add: bool = False):
         line = self.cap_list.GetItemCount()
@@ -186,15 +205,16 @@ class Plot(wxagg.FigureCanvasWxAgg):
     """图表用于展示在线人数数据"""
 
     def __init__(self, parent: wx.Window):
-        super().__init__(parent, wx.ID_ANY, Figure())
+        super().__init__(parent, wx.ID_ANY, Figure(tight_layout=True))
         self.activate_filter = DataFilter()
 
         axes = self.figure.gca()
         axes.set_title("在线人数")
         axes.set_xlabel("时间")
         axes.set_ylabel("在线人数")
-        self.raw_datas: dict[float, ServerPoint] = {time(): ServerPoint(time(), 0, [], 0)}
-        self.datas: dict[float, ServerPoint] = {time(): ServerPoint(time(), 0, [], 0)}
+        self.raw_datas: dict[float, ServerPoint] = {}
+        self.datas: dict[float, ServerPoint] = {}
+        self.showing_datas: dict[float, ServerPoint] = {}
         self.axes = axes
         self.offset: int = 0  # 当前显示的起始索引
         self.scale: float = 1.0  # 显示的数据占总数据的百分比
@@ -204,6 +224,35 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.draw_call = wx.CallLater(50, self.draw_plot)
         self.draw_plot()
         self.Bind(wx.EVT_MOUSE_EVENTS, self.control_plot)
+        self.tooltip = ToolTip(self, "")  # 创建工具提示
+
+    def on_mouse_move(self, x: int, _):
+        if not self.showing_datas:
+            return
+        box: TransformedBbox = self.axes.get_window_extent()
+        percent = (x - round(box.x0)) / (round(box.x1) - round(box.x0))
+        print(percent, x, box.x0, box.x1 - box.x0)
+        if percent < 0 or percent > 1:
+            self.tooltip.set_tip("")
+            return
+        times = sorted(self.showing_datas.keys())
+        min_time = min(times)
+        exact_time = (max(times) - min_time) * percent + min_time
+        closest_time = times[bisect_right(times, exact_time)]
+        point = self.showing_datas[closest_time]
+
+        time_str = datetime.fromtimestamp(closest_time).strftime('%Y-%m-%d %H:%M:%S')
+        players = ""
+        for i, player in enumerate(point.players):
+            if i % 3 == 2:
+                players += f"{player.name}\n"
+            elif i == len(point.players) - 1:
+                players += f"{player.name}"
+            else:
+                players += f"{player.name}, "
+        tooltip_text = f"""时间: {time_str}\n玩家: \n{players}"""
+        self.tooltip.set_tip(tooltip_text)
+
 
     def update_filter(self, filter_: DataFilter):
         self.activate_filter = filter_
@@ -238,6 +287,9 @@ class Plot(wxagg.FigureCanvasWxAgg):
             else:
                 self.scale *= 1.1  # 缩小
                 self.offset -= int(len(self.datas) * (self.scale - last_scale) / 2)
+        elif event.Moving():
+            self.on_mouse_move(event.GetX(), event.GetY())
+            return
         else:
             return
         self.offset = clamp(self.offset, 0, int(len(self.datas) * (1 - self.scale)))
@@ -290,14 +342,18 @@ class Plot(wxagg.FigureCanvasWxAgg):
         """
         根据目前数据绘制图表
         """
+        if not self.datas:
+            return
         self.axes.cla()
         self.axes.grid(True)
         start, stop = self.offset, self.offset + int(len(self.datas) * self.scale)
-        visible_datas = slice_dict(self.datas, start, stop)
+        self.showing_datas = slice_dict(self.datas, start, stop)
+        self.axes.set_xlim(datetime.fromtimestamp(min(self.showing_datas.keys())),
+                           datetime.fromtimestamp(max(self.showing_datas.keys())))
         self.axes.plot(
-            [datetime.fromtimestamp(t) for t in visible_datas.keys()],
-            [p.online for p in visible_datas.values()],
-            color="#31AAC6", linewidth=2, alpha=0.8
+            [datetime.fromtimestamp(t) for t in self.showing_datas.keys()],
+            [p.online for p in self.showing_datas.values()],
+            color="#31AAC6", linewidth=1.5, alpha=0.8
         )
         self.axes.xaxis.set_major_formatter(DateFormatter('%d %H:%M'))
         self.axes.yaxis.set_major_formatter(UniqueIntFormatter())
