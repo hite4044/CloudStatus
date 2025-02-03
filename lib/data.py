@@ -140,6 +140,9 @@ class DataManager:
         保存数据到预设好的文件夹中
         tip: 会比对文件哈希值并删除失效的数据文件
         """
+        if not config.enable_data_save:
+            logger.info("数据保存已禁用，跳过保存")
+            return
         logger.info(f"保存数据到 [{self.data_dir}]...")
         self.data_files.clear()
         ready_points: list[dict] = []

@@ -30,6 +30,9 @@ class ConfigLine(wx.Panel):
             self.widget = wx.SpinCtrl(parent, value=str(self.value), max=maxsize, style=wx.TE_PROCESS_ENTER)
         elif self.fmt == float:
             self.widget = wx.SpinCtrlDouble(parent, value=str(self.value), max=maxsize, style=wx.TE_PROCESS_ENTER)
+        elif self.fmt == bool:
+            self.widget = wx.CheckBox(parent)
+            self.widget.SetValue(self.value)
         else:
             raise ValueError(f"Unsupported fmt: {self.fmt}")
         # self.label.SetMaxSize((-1, 28))
@@ -41,8 +44,11 @@ class ConfigLine(wx.Panel):
             self.SetSizer(sizer)
             self.SetMaxSize((-1, 28))
         self.widget.Bind(wx.EVT_SET_FOCUS, self.focus_in)
-        self.widget.Bind(wx.EVT_KILL_FOCUS, self.apply_value)
-        self.widget.Bind(wx.EVT_TEXT_ENTER, self.apply_value)
+        if self.fmt == bool:
+            self.widget.Bind(wx.EVT_CHECKBOX, self.apply_value)
+        else:
+            self.widget.Bind(wx.EVT_KILL_FOCUS, self.apply_value)
+            self.widget.Bind(wx.EVT_TEXT_ENTER, self.apply_value)
 
     def focus_in(self, event: wx.Event):
         self.last_value = self.widget.GetValue()
@@ -87,6 +93,7 @@ class ConfigPanel(wx.Panel):
             "min_online_time": ["最小在线时间", int, config.min_online_time],
             "fix_sep": ["数据空隙修复间隔", float, config.fix_sep],
             "data_dir": ["数据文件夹", str, config.data_dir],
+            "enable_data_save": ["启用保存数据功能", bool, config.enable_data_save]
         }
         sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         self.SetFont(ft(11))
