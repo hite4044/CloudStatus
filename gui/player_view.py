@@ -156,7 +156,6 @@ class PlayerOnlinePanel(wx.Panel):
         super().__init__(parent)
         # 创建时间选择控件并狠狠地给它注入两个按钮
         self.time_selector = TimeSelector(self)
-        self.time_selector.date_ctrl.SetValue(wx.DateTime(29, 0, 2025))
         self.load_btn = wx.Button(self.time_selector, label="加载")
         self.reset_btn = wx.Button(self.time_selector, label="重置")
         widget_sizer: wx.BoxSizer = self.time_selector.GetSizer()
@@ -259,14 +258,25 @@ class PlayerInfoPanel(wx.Panel):
 
     def __init__(self, parent: wx.Window, data_manager: DataManager):
         super().__init__(parent)
+        self.active_day = date.today()
         self.data_manager = data_manager  # 初始化数据管理器用于数据操作
         self.sort_column = 1  # 设置默认排序列为第1列
         self.sort_ascending = False  # 降序排列
         self.activate_datas = {}  # 初始化激活数据字典
 
         sizer = wx.BoxSizer(wx.VERTICAL)
+        # 创建时间选择控件并狠狠地给它注入两个按钮
+        self.time_selector = TimeSelector(self)
+        self.load_btn = wx.Button(self.time_selector, label="加载")
+        self.reset_btn = wx.Button(self.time_selector, label="重置")
+        widget_sizer: wx.BoxSizer = self.time_selector.GetSizer()
+        widget_sizer.InsertStretchSpacer(0, 1)
+        widget_sizer.AddStretchSpacer(1)
+        widget_sizer.Add(self.reset_btn)
+        widget_sizer.Add(self.load_btn)
         self.start_analyze_btn = wx.Button(self, label="开始分析")
         self.analyze_gauge = wx.Gauge(self, range=100, style=wx.GA_SMOOTH | wx.GA_TEXT)
+
         self.player_info_lc = wx.ListCtrl(self, style=wx.LC_REPORT)
         column_map = [
             ("玩家名", 250),
@@ -283,7 +293,9 @@ class PlayerInfoPanel(wx.Panel):
         self.start_analyze_btn.SetMaxSize((-1, 50))
         self.start_analyze_btn.SetMinSize((-1, 50))
         self.analyze_gauge.SetMaxSize((-1, 30))
-        sizer.Add(self.start_analyze_btn, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=5)
+        sizer.Add(self.time_selector, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=5)
+        sizer.AddSpacer(5)
+        sizer.Add(self.start_analyze_btn, flag=wx.EXPAND | wx.LEFT | wx.RIGHT, border=5)
         sizer.AddSpacer(5)
         sizer.Add(self.analyze_gauge, flag=wx.EXPAND | wx.LEFT | wx.RIGHT, border=5)
         sizer.AddSpacer(5)
@@ -293,6 +305,17 @@ class PlayerInfoPanel(wx.Panel):
         self.analyze_thread = Thread(target=self.analyze_players)
         self.start_analyze_btn.Bind(wx.EVT_BUTTON, self.start_analyze)
         self.player_info_lc.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_click)
+
+        self.reset_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
+        self.load_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
+
+    def on_filter_update(self, event: wx.Event):
+        if event.GetEventObject() == self.reset_btn:
+            self.active_day = date.today()
+        else:
+            start = self.time_selector.get_time_point()
+            self.active_day = start
+        self.start_analyze(None)
 
     def start_analyze(self, _):
         """启动分析任务"""
@@ -408,8 +431,8 @@ class PlayerInfoPanel(wx.Panel):
                     info.max_online_per_session = during
 
             # 计算玩家今天在线时间
-            day_start = datetime.combine(date.today(), time()).timestamp()
-            day_end = datetime.combine(date.today(), time(23, 59, 59)).timestamp()
+            day_start = datetime.combine(self.active_day, time()).timestamp()
+            day_end = datetime.combine(self.active_day, time(23, 59, 59)).timestamp()
             match_times = [(start, stop) for start, stop in info.online_times if start >= day_start and stop <= day_end]
             info.today_online_time = sum(stop - start for start, stop in match_times)
 
