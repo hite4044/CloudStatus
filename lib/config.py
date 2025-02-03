@@ -14,6 +14,7 @@ class Configer:
     saved_per_points: int = 10
     fix_sep: float = 300.0
     min_online_time: int = 60
+    data_dir: str = "./data"
 
     def __init__(self):
         self.config_vars = {}

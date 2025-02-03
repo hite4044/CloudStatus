@@ -1,17 +1,15 @@
-from datetime import datetime, time as dt_time, date as dt_date, timedelta
-from time import localtime, strftime, time, perf_counter
+from time import localtime, strftime, time
 
 from matplotlib import pyplot as plt
-from matplotlib.ticker import Formatter
 from matplotlib import rcParams as mpl_rcParams
 from matplotlib.backends import backend_wxagg as wxagg
 from matplotlib.dates import DateFormatter
 from matplotlib.figure import Figure
-from wx.adv import DatePickerCtrl
+from matplotlib.ticker import Formatter
 
-from lib.data import *
-from gui.widget import *
 from gui.events import *
+from gui.widget import *
+from lib.data import *
 from lib.perf import Counter
 
 mpl_rcParams["font.family"] = "Microsoft YaHei"

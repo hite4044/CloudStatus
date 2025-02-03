@@ -32,9 +32,9 @@ class Counter:
 
     def endT(self, name: str | None = None):
         ret = self.end(name)
-        return f"{ret*1000:.3f} ms"
+        return f"{ret * 1000:.3f} ms"
 
     def __str__(self):
         return "\n".join(
-            f"{n}: {v*1000:.3f} ms" for n, v in {**self.results, "##Local##": self.local_timer}.items()
+            f"{n}: {v * 1000:.3f} ms" for n, v in {**self.results, "##Local##": self.local_timer}.items()
         )

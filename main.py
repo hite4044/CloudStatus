@@ -1,23 +1,17 @@
-from datetime import datetime, time as dt_time, date as dt_date, timedelta
 from threading import Event, Thread
-from time import localtime, strftime, time, perf_counter
+from time import time
 
 from matplotlib import pyplot as plt
 from matplotlib import rcParams as mpl_rcParams
-from matplotlib.backends import backend_wxagg as wxagg
-from matplotlib.dates import DateFormatter
-from matplotlib.figure import Figure
-from matplotlib.ticker import Formatter
 from mcstatus import JavaServer
 from mcstatus.status_response import JavaStatusResponse
-from wx.adv import DatePickerCtrl
 
 from gui.config import ConfigPanel
 from gui.events import EVT_GET_STATUS_NOW
-from lib.data import *
-from gui.widget import *
 from gui.player_view import PlayerPanel
 from gui.status import StatusPanel
+from gui.widget import *
+from lib.data import *
 from lib.perf import Counter
 
 mpl_rcParams["font.family"] = "Microsoft YaHei"
@@ -79,7 +73,7 @@ class GUI(wx.Frame):
     def __init__(self):
         super().__init__(None, title=config.server_name + "监测", size=(1350, 850))
         logger.info("初始化GUI")
-        self.data_manager = DataManager("data")
+        self.data_manager = DataManager(config.data_dir)
         self.data_manager.load_data()
         self.init_ui()
         self.event_flag = Event()
@@ -87,7 +81,18 @@ class GUI(wx.Frame):
         self.time_reset_flag = Event()
         self.status_thread = Thread(target=self.status_thread_func)
         self.status_thread.start()
+        self.Bind(wx.EVT_CLOSE, self.on_close)
         wx.CallLater(200, self.load_points_gui)
+
+    def on_close(self, event: wx.CloseEvent):
+        logger.info("程序停止中...")
+        self.stop_flag.set()
+        self.event_flag.set()
+        self.status_thread.join()
+        config.save()
+        self.data_manager.save_data()
+        logger.info("再见!")
+        event.Skip()
 
     def load_points_gui(self):
         timer = Counter()
@@ -166,7 +171,3 @@ if __name__ == "__main__":
         app.MainLoop()
     except KeyboardInterrupt:
         pass
-    gui.stop_flag.set()
-    config.save()
-    gui.data_manager.save_data()
-    gui.status_thread.join()

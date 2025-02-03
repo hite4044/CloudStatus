@@ -9,7 +9,6 @@ from datetime import datetime, time as dt_time, date as dt_date, timedelta
 from time import perf_counter
 from wx.adv import DatePickerCtrl
 
-
 font_cache: dict[int, wx.Font] = {}
 maxsize = 1919810
 GA_LOOP_TIME = 5

@@ -12,7 +12,6 @@ csEVT_PLAYER_ONLINE_INFO = wx.NewEventType()
 EVT_PLAYER_ONLINE_INFO = wx.PyEventBinder(csEVT_PLAYER_ONLINE_INFO)
 
 
-
 class FilterChangeEvent(wx.PyCommandEvent):
     def __init__(self, filter_: Any):
         wx.PyCommandEvent.__init__(self, csEVT_FILTER_CHANGE, wx.ID_ANY)

@@ -242,6 +242,7 @@ class PlayerOnlinePanel(wx.Panel):
         self.Layout()
         self.Thaw()
 
+
 class PlayerPanel(wx.Notebook):
     def __init__(self, parent: wx.Window, data_manager: DataManager):
         super().__init__(parent)

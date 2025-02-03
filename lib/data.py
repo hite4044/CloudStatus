@@ -54,6 +54,7 @@ def slice_dict(d: dict, start: int, end: int) -> dict:
     # 构建并返回新的字典
     return {k: d[k] for k in sliced_keys}
 
+
 class ServerPoint:
     """一个服务器数据点"""
 
@@ -74,11 +75,11 @@ class ServerPoint:
 
     def copy(self, time: float):
         return ServerPoint(time, self.online, self.players, self.ping)
+
     @staticmethod
     def from_dict(dic: dict) -> "ServerPoint":
         players = [Player.from_dict(p) for p in dic.pop("players")]
         return ServerPoint(**dic, players=players)
-
 
 
 class DataManager:
@@ -176,6 +177,7 @@ class DataManager:
                 # noinspection PyTypeChecker
                 json.dump(points, f)
                 logger.info(f"保存文件 [{hash_hex + '.json'}] ...")
+
 
 class DataFilter:
     def __init__(self, from_time: float = None, to_time: float = None):

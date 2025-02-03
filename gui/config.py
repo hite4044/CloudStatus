@@ -1,9 +1,7 @@
 from typing import Any, Callable
 
-import wx
-
-from lib.config import config
 from gui.widget import *
+from lib.config import config
 from lib.data import MAX_SIZE
 
 
@@ -34,7 +32,7 @@ class ConfigLine(wx.Panel):
             self.widget = wx.SpinCtrlDouble(parent, value=str(self.value), max=maxsize, style=wx.TE_PROCESS_ENTER)
         else:
             raise ValueError(f"Unsupported fmt: {self.fmt}")
-        #self.label.SetMaxSize((-1, 28))
+        # self.label.SetMaxSize((-1, 28))
         self.widget.SetMaxSize((MAX_SIZE[0], 28))
         self.widget.SetMinSize((MAX_SIZE[0], 28))
         if use_sizer:
@@ -88,8 +86,9 @@ class ConfigPanel(wx.Panel):
             "saved_per_points": ["点/保存", int, config.saved_per_points],
             "min_online_time": ["最小在线时间", int, config.min_online_time],
             "fix_sep": ["数据空隙修复间隔", float, config.fix_sep],
+            "data_dir": ["数据文件夹", str, config.data_dir],
         }
-        sizer = wx.FlexGridSizer(len(self.config_map)+1, 2, 5, 5)
+        sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         self.SetFont(ft(11))
         for key, (label, fmt, value) in self.config_map.items():
             line = ConfigLine(self, label, value, fmt, False, key, config.set_value)
