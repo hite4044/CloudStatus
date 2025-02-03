@@ -231,7 +231,6 @@ class Plot(wxagg.FigureCanvasWxAgg):
             return
         box: TransformedBbox = self.axes.get_window_extent()
         percent = (x - round(box.x0)) / (round(box.x1) - round(box.x0))
-        print(percent, x, box.x0, box.x1 - box.x0)
         if percent < 0 or percent > 1:
             self.tooltip.set_tip("")
             return

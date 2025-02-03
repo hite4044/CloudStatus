@@ -183,7 +183,8 @@ class TimeSelector(wx.Panel):
 
 class ToolTip(wx.Frame):
     def __init__(self, parent: wx.Window, text: str):
-        super().__init__(parent, style=wx.FRAME_TOOL_WINDOW | wx.FRAME_FLOAT_ON_PARENT)
+        super().__init__(parent, style=wx.FRAME_TOOL_WINDOW | wx.FRAME_FLOAT_ON_PARENT | wx.NO_BORDER)
+        self.SetBackgroundColour(parent.GetBackgroundColour())
         self.SetFont(parent.GetFont())
         self.label = wx.StaticText(self, label=text)
         self.parent = parent
@@ -197,7 +198,9 @@ class ToolTip(wx.Frame):
             event.SetPosition(wx.Point(x, y))
             event.SetEventObject(self.parent)
             self.parent.ProcessEvent(event)
-        self.SetPosition(wx.GetMousePosition())
+        x, y = wx.GetMousePosition()
+        y -= self.GetSize()[1]
+        self.SetPosition((x, y))
         event.Skip()
 
     def set_tip(self, tip: str = None):
