@@ -186,26 +186,34 @@ class ToolTip(wx.Frame):
         super().__init__(parent, style=wx.FRAME_TOOL_WINDOW | wx.FRAME_FLOAT_ON_PARENT | wx.NO_BORDER)
         self.SetBackgroundColour(parent.GetBackgroundColour())
         self.SetFont(parent.GetFont())
-        self.label = wx.StaticText(self, label=text)
         self.parent = parent
+        self.label = wx.StaticText(self, label=text)
         parent.Bind(wx.EVT_MOTION, self.on_mouse_move)
         self.label.Bind(wx.EVT_MOTION, self.on_mouse_move)
+        self.label.SetDoubleBuffered(True)
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.check_visible)
+        self.timer.Start(300)
+
+    def check_visible(self, _):
+        screen_mouse = wx.GetMousePosition()
+        if not self.parent.GetScreenRect().Contains(*screen_mouse):
+            self.Hide()
 
     def on_mouse_move(self, event: wx.MouseEvent):
+        mouse = wx.GetMousePosition()
         if event.GetEventObject() == self.label:
-            m_x, m_y = wx.GetMousePosition()
-            x, y = m_x-self.parent.ScreenPosition[0], m_y-self.parent.ScreenPosition[1]
-            event.SetPosition(wx.Point(x, y))
+            local_pos = mouse[0] - self.parent.ScreenPosition[0], mouse[1] - self.parent.ScreenPosition[1]
+            event.SetPosition(wx.Point(*local_pos))
             event.SetEventObject(self.parent)
             self.parent.ProcessEvent(event)
-        x, y = wx.GetMousePosition()
-        y -= self.GetSize()[1]
-        self.SetPosition((x, y))
+        self.SetPosition((mouse[0], mouse[1] - self.GetSize()[1]))
         event.Skip()
 
     def set_tip(self, tip: str = None):
         if tip is None:
             self.Hide()
+            return
         else:
             self.Show()
         self.Freeze()

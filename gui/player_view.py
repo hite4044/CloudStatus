@@ -1,4 +1,4 @@
-from datetime import datetime, date, time
+from datetime import datetime, timedelta
 from threading import Thread
 from time import perf_counter, strftime, localtime
 
@@ -158,6 +158,8 @@ class PlayerOnlinePanel(wx.Panel):
         self.time_selector = TimeSelector(self)
         self.load_btn = wx.Button(self.time_selector, label="加载")
         self.reset_btn = wx.Button(self.time_selector, label="重置")
+        self.time_selector.label_hour.SetLabel("天起始:")
+        self.time_selector.hour_ctrl.SetValue(4)
         widget_sizer: wx.BoxSizer = self.time_selector.GetSizer()
         widget_sizer.InsertStretchSpacer(0, 1)
         widget_sizer.AddStretchSpacer(1)
@@ -194,8 +196,16 @@ class PlayerOnlinePanel(wx.Panel):
         if event.GetEventObject() == self.reset_btn:
             self.active_filter = OnlineTimeFilter()
         else:
+            if self.time_selector.hour_enable:
+                r = self.time_selector.hour_enable = False
+            else:
+                r = True
             start, end = self.time_selector.get_time_range()
+            start += timedelta(hours=self.time_selector.hour_ctrl.GetValue())
+            end += timedelta(hours=self.time_selector.hour_ctrl.GetValue())
             self.active_filter = OnlineTimeFilter(start.timestamp(), end.timestamp())
+            if not r:
+                self.time_selector.hour_enable = True
         self.filter_data()
         self.redraw()
 
@@ -259,7 +269,7 @@ class PlayerInfoPanel(wx.Panel):
 
     def __init__(self, parent: wx.Window, data_manager: DataManager):
         super().__init__(parent)
-        self.active_day = date.today()
+        self.active_filter = OnlineTimeFilter()
         self.data_manager = data_manager  # 初始化数据管理器用于数据操作
         self.sort_column = 1  # 设置默认排序列为第1列
         self.sort_ascending = False  # 降序排列
@@ -270,6 +280,8 @@ class PlayerInfoPanel(wx.Panel):
         self.time_selector = TimeSelector(self)
         self.load_btn = wx.Button(self.time_selector, label="加载")
         self.reset_btn = wx.Button(self.time_selector, label="重置")
+        self.time_selector.label_hour.SetLabel("天起始:")
+        self.time_selector.hour_ctrl.SetValue(4)
         widget_sizer: wx.BoxSizer = self.time_selector.GetSizer()
         widget_sizer.InsertStretchSpacer(0, 1)
         widget_sizer.AddStretchSpacer(1)
@@ -312,10 +324,18 @@ class PlayerInfoPanel(wx.Panel):
 
     def on_filter_update(self, event: wx.Event):
         if event.GetEventObject() == self.reset_btn:
-            self.active_day = date.today()
+            self.active_filter = OnlineTimeFilter()
         else:
-            start = self.time_selector.get_time_point()
-            self.active_day = start
+            if self.time_selector.hour_enable:
+                r = self.time_selector.hour_enable = False
+            else:
+                r = True
+            start, end = self.time_selector.get_time_range()
+            start += timedelta(hours=self.time_selector.hour_ctrl.GetValue())
+            end += timedelta(hours=self.time_selector.hour_ctrl.GetValue())
+            self.active_filter = OnlineTimeFilter(start.timestamp(), end.timestamp())
+            if not r:
+                self.time_selector.hour_enable = True
         self.start_analyze(None)
 
     def start_analyze(self, _):
@@ -432,9 +452,11 @@ class PlayerInfoPanel(wx.Panel):
                     info.max_online_per_session = during
 
             # 计算玩家今天在线时间
-            day_start = datetime.combine(self.active_day, time()).timestamp()
-            day_end = datetime.combine(self.active_day, time(23, 59, 59)).timestamp()
-            match_times = [(start, stop) for start, stop in info.online_times if start >= day_start and stop <= day_end]
+            match_times = []
+            for start, stop in info.online_times:
+                t = self.active_filter.filter((start, stop))
+                if t:
+                    match_times.append(t)
             info.today_online_time = sum(stop - start for start, stop in match_times)
 
             logger.debug(

@@ -226,8 +226,11 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.Bind(wx.EVT_MOUSE_EVENTS, self.control_plot)
         self.tooltip = ToolTip(self, "")  # 创建工具提示
 
-    def on_mouse_move(self, x: int, _):
+    def on_mouse_move(self, x: int, y: int):
         if not self.showing_datas:
+            return
+        if not self.GetScreenRect().Contains(x+self.GetScreenPosition()[0], y+self.GetScreenPosition()[1]):
+            self.tooltip.set_tip("")
             return
         box: TransformedBbox = self.axes.get_window_extent()
         percent = (x - round(box.x0)) / (round(box.x1) - round(box.x0))
@@ -237,7 +240,8 @@ class Plot(wxagg.FigureCanvasWxAgg):
         times = sorted(self.showing_datas.keys())
         min_time = min(times)
         exact_time = (max(times) - min_time) * percent + min_time
-        closest_time = times[bisect_right(times, exact_time)]
+        index = bisect_right(times, exact_time)
+        closest_time = times[index - 1]
         point = self.showing_datas[closest_time]
 
         time_str = datetime.fromtimestamp(closest_time).strftime('%Y-%m-%d %H:%M:%S')
