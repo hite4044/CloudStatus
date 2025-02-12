@@ -13,6 +13,7 @@ from gui.status import StatusPanel
 from gui.widget import *
 from lib.data import *
 from lib.perf import Counter
+import pystray
 
 mpl_rcParams["font.family"] = "Microsoft YaHei"
 plt.rcParams["axes.unicode_minus"] = False
@@ -125,7 +126,13 @@ class GUI(wx.Frame):
         self.Bind(EVT_GET_STATUS_NOW, self.on_req_get_status)
         self.notebook.SetMinSize(MAX_SIZE)
         self.SetBackgroundColour(self.status_panel.GetBackgroundColour())
+        self.load_icon()
         self.Center()
+
+    def load_icon(self):
+        icon = wx.Icon()
+        icon.LoadFile("assets/icon16px.png", wx.BITMAP_TYPE_ANY)
+        self.SetIcon(icon)
 
     def on_req_get_status(self, _):
         self.time_reset_flag.set()
