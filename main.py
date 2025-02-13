@@ -7,7 +7,7 @@ from mcstatus import JavaServer
 from mcstatus.status_response import JavaStatusResponse
 
 from gui.config import ConfigPanel
-from gui.events import EVT_GET_STATUS_NOW
+from gui.events import EVT_GET_STATUS_NOW, EVT_PAUSE_STATUS
 from gui.player_view import PlayerPanel
 from gui.status import StatusPanel
 from gui.widget import *
@@ -80,20 +80,27 @@ class GUI(wx.Frame):
         self.event_flag = Event()
         self.stop_flag = Event()
         self.time_reset_flag = Event()
+        self.status_flag = Event()
         self.status_thread = Thread(target=self.status_thread_func)
         self.status_thread.start()
         self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.status_flag.set()
         wx.CallLater(200, self.load_points_gui)
 
-    def on_close(self, event: wx.CloseEvent):
+    def on_close(self, _):
         logger.info("程序停止中...")
         self.stop_flag.set()
         self.event_flag.set()
         self.status_thread.join()
         config.save()
         self.data_manager.save_data()
+        self.Destroy()
         logger.info("再见!")
-        event.Skip()
+        exit(0)
+
+    def on_pause_status(self, _):
+        self.status_flag.clear() if self.status_flag.is_set() else self.status_flag.set()
+        self.event_flag.set()
 
     def load_points_gui(self):
         timer = Counter()
@@ -124,6 +131,7 @@ class GUI(wx.Frame):
 
         name_title.SetMinSize((MAX_SIZE[0], 36))
         self.Bind(EVT_GET_STATUS_NOW, self.on_req_get_status)
+        self.Bind(EVT_PAUSE_STATUS, self.on_pause_status)
         self.notebook.SetMinSize(MAX_SIZE)
         self.SetBackgroundColour(self.status_panel.GetBackgroundColour())
         self.load_icon()
@@ -151,14 +159,22 @@ class GUI(wx.Frame):
                     self.data_manager.add_point(status)
                     logger.debug("数据获取成功")
                 wx.CallAfter(self.load_point, status)
+
             self.event_flag.wait(1)
+            if self.event_flag.is_set():
+                self.event_flag.clear()
             if self.stop_flag.is_set():
                 break
             elif self.time_reset_flag.is_set():
                 last_status = 0
                 self.time_reset_flag.clear()
-                self.event_flag.clear()
                 logger.info("用户请求立即获取状态")
+            elif not self.status_flag.is_set():
+                logger.info("状态线程已暂停")
+                self.event_flag.wait()
+                if self.status_flag.is_set():
+                    logger.info("状态线程已恢复")
+                    last_status = perf_counter()
 
     def load_point(self, point: ServerPoint | None):
         """在运行过程中 获取到的数据点 的加载函数"""

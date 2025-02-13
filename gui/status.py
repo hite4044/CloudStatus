@@ -368,12 +368,14 @@ class ProgressShower(wx.Panel):
         super().__init__(parent)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.info_text = FormatedText(self, fmt="下一次获取: {}后")
+        self.pause_btn = wx.Button(self, label="暂停")
         self.get_status_btn = wx.Button(self, label="获取状态")
-        self.progress_bar = CustomProgressBar(self, max_value=100)
+        self.progress_bar = wx.Gauge(self, range=114514)
         self.get_status_btn.SetMaxSize((-1, 29))
         self.get_status_btn.SetFont(ft(10))
         top_sizer = wx.BoxSizer(wx.HORIZONTAL)
         top_sizer.Add(self.info_text, flag=wx.EXPAND, proportion=1)
+        top_sizer.Add(self.pause_btn, proportion=0)
         top_sizer.Add(self.get_status_btn, proportion=0)
         sizer.Add(top_sizer, flag=wx.EXPAND, proportion=0)
         sizer.Add(self.progress_bar, flag=wx.EXPAND, proportion=1)
@@ -381,11 +383,29 @@ class ProgressShower(wx.Panel):
         self.SetMinSize((-1, 55))
         self.SetMaxSize((-1, 55))
 
+        self.pause_btn.Bind(wx.EVT_BUTTON, self.pause_btn_click)
+        self.get_status_btn.Bind(wx.EVT_BUTTON, self.get_status_now)
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.progress_update, self.timer)
-        self.get_status_btn.Bind(wx.EVT_BUTTON, self.get_status_now)
         self.timer.Start(490)
         self.start_wait = perf_counter()
+
+    def pause_btn_click(self, _):
+        # 发送 暂停/恢复 事件
+        event = PauseStatusEvent(not self.pause_btn.GetLabel() == "暂停")
+        event.SetEventObject(self)
+        self.ProcessEvent(event)
+        if self.pause_btn.GetLabel() == "暂停":
+            self.timer.Stop()
+            self.get_status_btn.Enable(False)
+            self.pause_btn.SetLabel("恢复")
+            self.info_text.SetLabel("暂停中")
+            self.info_text.SetBackgroundColour(wx.Colour((255, 242, 0)))
+        else:
+            self.get_status_btn.Enable(True)
+            self.pause_btn.SetLabel("暂停")
+            self.info_text.SetBackgroundColour(self.pause_btn.GetBackgroundColour())
+            self.get_status_now(None)
 
     def get_status_now(self, _):
         # 发送 立即获取服务器信息 事件
@@ -404,7 +424,7 @@ class ProgressShower(wx.Panel):
             self.progress_bar.Pulse()
             self.info_text.SetLabel("正在获取...")
         else:
-            self.progress_bar.SetValue(progress_percent * 100)
+            self.progress_bar.SetValue(int(progress_percent * 114514))
             self.info_text.format(f"{config.check_inv - (perf_counter() - self.start_wait):.1f}秒")
 
     def load_point(self, _):

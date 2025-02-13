@@ -1,3 +1,4 @@
 matplotlib==3.10.0
 mcstatus==11.1.1
 wxPython==4.2.2
+pystray==0.19.5
