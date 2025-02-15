@@ -11,7 +11,7 @@ from colour import Color
 
 from gui.events import GetStatusNowEvent
 from gui.widget import ft, CenteredStaticText, CenteredBitmap, get_gradient_bitmap, GradientDirection
-from lib.data import ServerPoint
+from lib.data import ServerPoint, DataManager
 from lib.log import logger
 from lib.skin import request_player_skin, render_player_head
 
@@ -198,8 +198,9 @@ class PlayerCardList(wx.ScrolledWindow):
 
 
 class OverviewPanel(wx.Panel):
-    def __init__(self, parent: wx.Window):
+    def __init__(self, parent: wx.Window, data_manager: DataManager):
         wx.Panel.__init__(self, parent)
+        self.data_manager = data_manager
         self.time_label = CenteredStaticText(self, label="时间: 2025-02-14 21:51:39")
         self.reset_btn = wx.Button(self.time_label, label="重置")
         self.update_btn = wx.Button(self.time_label, label="更新")
@@ -224,7 +225,7 @@ class OverviewPanel(wx.Panel):
                          ServerStatus.ONLINE)
 
     def on_reset(self, _):
-        point: ServerPoint = list(the_data_manager.points)[-1]
+        point: ServerPoint = list(self.data_manager.points)[-1]
         self.update_data([p.name for p in point.players], point.time, ServerStatus.ONLINE)
 
     def on_update(self, _):

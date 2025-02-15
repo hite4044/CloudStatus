@@ -122,7 +122,7 @@ class GUI(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
         name_title = NameTitle(self)
         self.notebook = wx.Notebook(self)
-        self.overview_panel = OverviewPanel(self.notebook)
+        self.overview_panel = OverviewPanel(self.notebook, self.data_manager)
         self.status_panel = StatusPanel(self.notebook, self.data_manager)
         self.player_view_panel = PlayerPanel(self.notebook, self.data_manager)
         self.config_panel = ConfigPanel(self.notebook)
