@@ -32,7 +32,7 @@ class UniqueIntFormatter(Formatter):
 
 
 class StatusPanel(wx.SplitterWindow):
-    def __init__(self, parent: wx.Window):
+    def __init__(self, parent: wx.Window, data_manager: DataManager):
         super().__init__(parent)
         sizer_l = wx.BoxSizer(wx.VERTICAL)
         self.left_panel = wx.Panel(self)
@@ -56,7 +56,7 @@ class StatusPanel(wx.SplitterWindow):
         )
         self.left_panel.SetSizer(sizer_l)
 
-        self.cap_list = CapList(self)
+        self.cap_list = CapList(self, data_manager)
 
         self.SplitVertically(self.left_panel, self.cap_list, 0)
         self.SetSashGravity(0.65)
@@ -67,8 +67,9 @@ class StatusPanel(wx.SplitterWindow):
 
 
 class CapList(wx.Panel):
-    def __init__(self, parent: wx.Window):
+    def __init__(self, parent: wx.Window, data_manager: DataManager):
         super().__init__(parent)
+        self.data_manager = data_manager
         self.points: dict[int, str] = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         title = CenteredStaticText(self, label="状态列表")
@@ -114,7 +115,7 @@ class CapList(wx.Panel):
             event.Skip()
 
     def set_as_overview(self, item: int):
-        point: ServerPoint = the_data_manager.get_point(self.points[item])
+        point: ServerPoint = self.data_manager.get_point(self.points[item])
         event = SetAsOverviewEvent(point)
         event.SetEventObject(self)
         self.ProcessEvent(event)

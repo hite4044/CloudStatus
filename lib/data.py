@@ -88,8 +88,6 @@ class DataManager:
     """
 
     def __init__(self, data_dir: str):
-        global the_data_manager
-        the_data_manager = self
         self.data_dir = data_dir
         self.non_saved_counter = 0
         self.points_map: dict[str, ServerPoint] = {}
@@ -206,5 +204,3 @@ class DataFilter:
         if self.from_time is None and self.to_time is None:
             return True
         return self.from_time <= point.time <= self.to_time
-
-the_data_manager: DataManager = ...

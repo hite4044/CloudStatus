@@ -123,7 +123,7 @@ class GUI(wx.Frame):
         name_title = NameTitle(self)
         self.notebook = wx.Notebook(self)
         self.overview_panel = OverviewPanel(self.notebook)
-        self.status_panel = StatusPanel(self.notebook)
+        self.status_panel = StatusPanel(self.notebook, self.data_manager)
         self.player_view_panel = PlayerPanel(self.notebook, self.data_manager)
         self.config_panel = ConfigPanel(self.notebook)
         self.notebook.AddPage(self.overview_panel, "总览")
@@ -146,6 +146,7 @@ class GUI(wx.Frame):
 
     def on_set_as_overview(self, event: SetAsOverviewEvent):
         point = event.point
+        self.notebook.SetSelection(0)
         self.overview_panel.update_data([p.name for p in point.players], point.time, ServerStatus.ONLINE)
 
     def load_icon(self):

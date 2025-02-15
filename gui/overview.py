@@ -11,7 +11,7 @@ from colour import Color
 
 from gui.events import GetStatusNowEvent
 from gui.widget import ft, CenteredStaticText, CenteredBitmap, get_gradient_bitmap, GradientDirection
-from lib.data import the_data_manager, ServerPoint
+from lib.data import ServerPoint
 from lib.log import logger
 from lib.skin import request_player_skin, render_player_head
 
