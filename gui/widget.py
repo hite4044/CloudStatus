@@ -3,10 +3,12 @@ widget.py
 在此项目中用到的:
 实用小部件&实用函数
 """
-import wx
-from enum import Enum
 from datetime import datetime, time as dt_time, date as dt_date, timedelta
-from time import perf_counter
+from enum import Enum
+
+import wx
+from PIL import ImageDraw
+from PIL import Image
 from wx.adv import DatePickerCtrl
 
 font_cache: dict[int, wx.Font] = {}
@@ -15,11 +17,41 @@ GA_LOOP_TIME = 5
 GA_WAIT_TIME = 2
 
 
+class GradientDirection(Enum):
+    HORIZONTAL = 0
+    VERTICAL = 1
+
+
 def ft(size: int):
     if size not in font_cache:
         font_cache[size] = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
         font_cache[size].SetPointSize(size)
     return font_cache[size]
+
+
+def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, int], dir_: GradientDirection):
+    width, height = size
+    if color1.GetRGB() == color2.GetRGB():
+        image = Image.new("RGB", (width, height), color1.GetRGB())
+    else:
+        image = Image.new("RGB", (width, height), (0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        if dir_ == GradientDirection.HORIZONTAL:
+            for x in range(width):
+                r = int(color1[0] + (color2[0] - color1[0]) * x / width)
+                g = int(color1[1] + (color2[1] - color1[1]) * x / width)
+                b = int(color1[2] + (color2[2] - color1[2]) * x / width)
+                draw.line((x, 0, x, height), fill=(r, g, b))
+        elif dir_ == GradientDirection.VERTICAL:
+            for y in range(height):
+                r = int(color1[0] + (color2[0] - color1[0]) * y / height)
+                g = int(color1[1] + (color2[1] - color1[1]) * y / height)
+                b = int(color1[2] + (color2[2] - color1[2]) * y / height)
+                draw.line((0, y, width, y), fill=(r, g, b))
+        else:
+            raise ValueError("Invalid direction")
+    bitmap = wx.Image(image.width, image.height, image.tobytes())
+    return bitmap.ConvertToBitmap()
 
 
 class CenteredStaticText(wx.StaticText):
@@ -56,6 +88,53 @@ class CenteredStaticText(wx.StaticText):
         )
 
 
+class CenteredBitmap(wx.StaticBitmap):
+    def __init__(
+            self,
+            parent,
+            id_=wx.ID_ANY,
+            bitmap=wx.NullBitmap,
+            pos=wx.DefaultPosition,
+            size=wx.DefaultSize,
+            style=0,
+            name=wx.StaticBitmapNameStr,
+            x_center=True,
+            y_center=True,
+    ):
+        super().__init__(parent, id_, bitmap, pos, size, style, name)
+        self.x_center = x_center
+        self.y_center = y_center
+        self.color1 = self.color2 = self.GetBackgroundColour()
+        self.background = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_SIZE, self.on_size)
+
+    def on_size(self, event: wx.SizeEvent):
+        event.Skip()
+        self.background = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
+
+    def set_color(self, color: wx.Colour, color2: wx.Colour = wx.NullColour):
+        self.color1 = wx.Colour(color)
+        if color2.IsOk():
+            self.color2 = wx.Colour(color2)
+        else:
+            self.color2 = wx.Colour(color)
+        self.background = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
+        self.Refresh()
+
+    def on_paint(self, _):
+        try:
+            dc = wx.PaintDC(self)
+        except RuntimeError:
+            return
+        bitmap: wx.Bitmap = self.GetBitmap()
+        dc.DrawBitmap(self.background, (0, 0))
+        if bitmap.IsOk():
+            size = self.GetSize()
+            dc.DrawBitmap(bitmap, ((size[0] - bitmap.GetWidth()) // 2) * int(self.x_center),
+                          ((size[1] - bitmap.GetHeight()) // 2) * int(self.y_center))
+
+
 class FormatedText(wx.StaticText):
     def __init__(self, parent: wx.Window, fmt: str):
         super().__init__(parent, label=fmt)
@@ -63,70 +142,6 @@ class FormatedText(wx.StaticText):
 
     def format(self, *texts):
         self.SetLabel(self.fmt.format(*texts))
-
-
-class BarMode(Enum):
-    DETERMINATE = 0
-    INDETERMINATE = 1
-
-
-class BarColor:
-    BACKGROUND = (230, 230, 230)
-    BAR = (6, 176, 37)
-    BORDER = (188, 188, 188)
-
-
-# noinspection PyPep8Naming
-class CustomProgressBar(wx.Control):
-    def __init__(self, parent, id_=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.DefaultSize, max_value=100,
-                 style=wx.NO_BORDER):
-        super(CustomProgressBar, self).__init__(parent, id_, pos, size, style, wx.DefaultValidator, "CustomProgressBar")
-
-        self.value = 0
-        self.max_value = max_value
-        self.mode: BarMode = BarMode.INDETERMINATE
-
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
-        self.Bind(wx.EVT_SIZE, self.OnSize)
-
-    def SetValue(self, value):
-        if 0 <= value <= self.max_value:
-            self.value = value
-            self.mode = BarMode.DETERMINATE
-            self.Refresh()
-        else:
-            raise ValueError(f"Value must be between 0 and {self.max_value}")
-
-    def Pulse(self):
-        self.mode = BarMode.INDETERMINATE
-        self.Refresh()
-
-    def OnPaint(self, _):
-        dc = wx.PaintDC(self)
-        width, height = self.GetClientSize()
-        width -= 2
-        height -= 2
-
-        dc.SetBrush(wx.Brush(BarColor.BACKGROUND))
-        dc.DrawRectangle(-1, -1, width + 4, height + 4)
-        dc.Clear()
-        dc.SetPen(wx.Pen(BarColor.BAR))
-        dc.SetBrush(wx.Brush(BarColor.BAR))  # 因为不知道怎么不画出边框，所以用同样的颜色掩盖一下
-        if self.mode == BarMode.DETERMINATE:
-            progress_width = int((self.value / self.max_value) * width)
-            dc.DrawRectangle(1, 1, progress_width - 1, height)
-        else:
-            loop_time = (perf_counter() % GA_LOOP_TIME + GA_WAIT_TIME)
-            pulse_width = int(width * 0.1)
-            if loop_time < GA_LOOP_TIME:
-                pulse_start = (width + pulse_width) * (loop_time / GA_LOOP_TIME) - pulse_width  # 计算滑块的起始位置
-                dc.DrawRectangle(int(pulse_start), 1, pulse_width - 1, height)
-        dc.SetPen(wx.Pen(BarColor.BORDER))
-        dc.DrawLines([(0, 0), (width + 1, 0), (width + 1, height + 1), (0, height + 1), (0, 0)])
-
-    def OnSize(self, event):
-        self.Refresh()
-        event.Skip()
 
 
 class TimeSelector(wx.Panel):

@@ -1,4 +1,4 @@
-from time import localtime, strftime, time
+from time import localtime, strftime, time, perf_counter
 from bisect import bisect_right
 
 from matplotlib import pyplot as plt
@@ -69,6 +69,7 @@ class StatusPanel(wx.SplitterWindow):
 class CapList(wx.Panel):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
+        self.points: dict[int, str] = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         title = CenteredStaticText(self, label="状态列表")
         title.SetFont(ft(14))
@@ -106,12 +107,21 @@ class CapList(wx.Panel):
             menu.Bind(wx.EVT_MENU, lambda e: copy_data(1), id=line.GetId())
             line: wx.MenuItem = menu.Append(-1, "复制玩家列表")
             menu.Bind(wx.EVT_MENU, lambda e: copy_data(3), id=line.GetId())
+            line: wx.MenuItem = menu.Append(-1, "设为预览")
+            menu.Bind(wx.EVT_MENU, lambda e: self.set_as_overview(item), id=line.GetId())
             self.PopupMenu(menu, event.GetPoint())
         else:
             event.Skip()
 
+    def set_as_overview(self, item: int):
+        point: ServerPoint = the_data_manager.get_point(self.points[item])
+        event = SetAsOverviewEvent(point)
+        event.SetEventObject(self)
+        self.ProcessEvent(event)
+
     def load_point(self, point: ServerPoint, runtime_add: bool = False):
         line = self.cap_list.GetItemCount()
+        self.points[line] = point.id_
         self.cap_list.InsertItem(line, str(line + 1))
         self.cap_list.SetItem(line, 1, strftime("%y-%m-%d %H:%M", localtime(point.time)))
         self.cap_list.SetItem(line, 2, str(point.online))

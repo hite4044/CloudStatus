@@ -88,6 +88,8 @@ class DataManager:
     """
 
     def __init__(self, data_dir: str):
+        global the_data_manager
+        the_data_manager = self
         self.data_dir = data_dir
         self.non_saved_counter = 0
         self.points_map: dict[str, ServerPoint] = {}
@@ -110,6 +112,14 @@ class DataManager:
         if self.non_saved_counter >= config.saved_per_points:
             self.save_data()
             self.non_saved_counter = 0
+
+    def get_point(self, point_id: str) -> ServerPoint:
+        """
+        获取一个数据点
+        :param point_id: 数据点的id
+        :return: 数据点
+        """
+        return self.points_map[point_id]
 
     def remove_point(self, point: ServerPoint):
         """
@@ -196,3 +206,5 @@ class DataFilter:
         if self.from_time is None and self.to_time is None:
             return True
         return self.from_time <= point.time <= self.to_time
+
+the_data_manager: DataManager = ...

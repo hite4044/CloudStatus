@@ -1,5 +1,5 @@
 from threading import Event, Thread
-from time import time
+from time import time, perf_counter
 
 from matplotlib import pyplot as plt
 from matplotlib import rcParams as mpl_rcParams
@@ -7,13 +7,13 @@ from mcstatus import JavaServer
 from mcstatus.status_response import JavaStatusResponse
 
 from gui.config import ConfigPanel
-from gui.events import EVT_GET_STATUS_NOW, EVT_PAUSE_STATUS
-from gui.player_view import PlayerPanel
-from gui.status import StatusPanel
+from gui.events import EVT_GET_STATUS_NOW, EVT_PAUSE_STATUS, EVT_SET_AS_OVERVIEW, SetAsOverviewEvent
+from gui.overview import OverviewPanel, ServerStatus
+from gui.players_info import PlayerPanel
+from gui.status_plot import StatusPanel
 from gui.widget import *
 from lib.data import *
 from lib.perf import Counter
-import pystray
 
 mpl_rcParams["font.family"] = "Microsoft YaHei"
 plt.rcParams["axes.unicode_minus"] = False
@@ -58,8 +58,10 @@ def get_server_status() -> ServerPoint | None:
         status = server.status()
         ping = server.ping()
         point = translate_status(status, ping)
+        gui.server_status = ServerStatus.ONLINE
         return point
     except Exception as e:
+        gui.server_status = ServerStatus.OFFLINE
         logger.error(f"获取服务器状态失败: {e}")
     return None
 
@@ -77,6 +79,7 @@ class GUI(wx.Frame):
         self.data_manager = DataManager(config.data_dir)
         self.data_manager.load_data()
         self.init_ui()
+        self.server_status = ServerStatus.OFFLINE
         self.event_flag = Event()
         self.stop_flag = Event()
         self.time_reset_flag = Event()
@@ -110,6 +113,7 @@ class GUI(wx.Frame):
 
         self.status_panel.cap_list.points_init(points)
         self.status_panel.plot.points_init(points)
+        self.overview_panel.update_data([p.name for p in points[-1].players], points[-1].time, ServerStatus.ONLINE)
         logger.info(f"GUI数据加载完成! (耗时: {timer.endT()})")
 
     # noinspection PyAttributeOutsideInit
@@ -118,9 +122,11 @@ class GUI(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
         name_title = NameTitle(self)
         self.notebook = wx.Notebook(self)
+        self.overview_panel = OverviewPanel(self.notebook)
         self.status_panel = StatusPanel(self.notebook)
         self.player_view_panel = PlayerPanel(self.notebook, self.data_manager)
         self.config_panel = ConfigPanel(self.notebook)
+        self.notebook.AddPage(self.overview_panel, "总览")
         self.notebook.AddPage(self.status_panel, "状态")
         self.notebook.AddPage(self.player_view_panel, "玩家")
         self.notebook.AddPage(self.config_panel, "配置")
@@ -132,15 +138,18 @@ class GUI(wx.Frame):
         name_title.SetMinSize((MAX_SIZE[0], 36))
         self.Bind(EVT_GET_STATUS_NOW, self.on_req_get_status)
         self.Bind(EVT_PAUSE_STATUS, self.on_pause_status)
+        self.Bind(EVT_SET_AS_OVERVIEW, self.on_set_as_overview)
         self.notebook.SetMinSize(MAX_SIZE)
         self.SetBackgroundColour(self.status_panel.GetBackgroundColour())
         self.load_icon()
         self.Center()
 
+    def on_set_as_overview(self, event: SetAsOverviewEvent):
+        point = event.point
+        self.overview_panel.update_data([p.name for p in point.players], point.time, ServerStatus.ONLINE)
+
     def load_icon(self):
-        icon = wx.Icon()
-        icon.LoadFile("assets/icon16px.png", wx.BITMAP_TYPE_ANY)
-        self.SetIcon(icon)
+        self.SetIcons(wx.IconBundle(f"assets/icon/icon.ico"))
 
     def on_req_get_status(self, _):
         self.time_reset_flag.set()
@@ -181,6 +190,9 @@ class GUI(wx.Frame):
         if point:
             self.status_panel.plot.load_point(point, True)
             self.status_panel.cap_list.load_point(point, True)
+            self.overview_panel.update_data([p.name for p in point.players], point.time, self.server_status)
+        else:
+            self.overview_panel.update_data([], time(), self.server_status)
         self.status_panel.progress.load_point(point)
 
 

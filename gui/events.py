@@ -1,8 +1,11 @@
 """
 定义项目事件
 """
-import wx
 from typing import Any
+
+import wx
+
+from lib.data import ServerPoint
 
 csEVT_FILTER_CHANGE = wx.NewEventType()
 EVT_FILTER_CHANGE = wx.PyEventBinder(csEVT_FILTER_CHANGE)
@@ -12,6 +15,8 @@ csEVT_PLAYER_ONLINE_INFO = wx.NewEventType()
 EVT_PLAYER_ONLINE_INFO = wx.PyEventBinder(csEVT_PLAYER_ONLINE_INFO)
 csEVT_PAUSE_STATUS = wx.NewEventType()
 EVT_PAUSE_STATUS = wx.PyEventBinder(csEVT_PAUSE_STATUS)
+csEVT_SET_AS_OVERVIEW = wx.NewEventType()
+EVT_SET_AS_OVERVIEW = wx.PyEventBinder(csEVT_SET_AS_OVERVIEW)
 
 
 class FilterChangeEvent(wx.PyCommandEvent):
@@ -35,3 +40,9 @@ class PauseStatusEvent(wx.PyCommandEvent):
     def __init__(self, pause_status: bool):
         wx.PyCommandEvent.__init__(self, csEVT_PAUSE_STATUS, wx.ID_ANY)
         self.pause_status = pause_status
+
+
+class SetAsOverviewEvent(wx.PyCommandEvent):
+    def __init__(self, point: ServerPoint):
+        wx.PyCommandEvent.__init__(self, csEVT_SET_AS_OVERVIEW, wx.ID_ANY)
+        self.point = point

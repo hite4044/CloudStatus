@@ -233,7 +233,7 @@ class PlayerOnlinePanel(wx.Panel):
         if self.active_filter.from_time:
             range_ = (self.active_filter.from_time, self.active_filter.to_time)
         else:
-            range_ = {0: 1145141919810, 1: 0}
+            range_ = {0: 1145141919810, 1: 1145141919811}
             for online_time in self.active_datas.values():
                 for time_ in online_time:
                     if time_[0] < range_[0]:
