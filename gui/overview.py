@@ -129,7 +129,6 @@ class PlayerCard(wx.Panel):
             color.set_luminance(0.8)
             self.name_label.set_color(wx.Colour(color.get_rgb()))
         else:
-            print(self.player)
             color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
             color_left.set_luminance(0.6)
             color_right.set_luminance(0.6)
