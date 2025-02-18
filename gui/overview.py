@@ -32,7 +32,7 @@ def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: i
         skin = request_player_skin(name)
         head = render_player_head(skin, target_size)
         head.save(f"heads_cache/{name}_{target_size}.png")
-    cbk(wx.Bitmap(f"heads_cache/{name}_{target_size}.png"))
+    wx.CallAfter(cbk, wx.Bitmap(f"heads_cache/{name}_{target_size}.png"))
 
 
 class EasyColor:
