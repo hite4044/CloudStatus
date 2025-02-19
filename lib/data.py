@@ -1,3 +1,9 @@
+"""
+这个文件做一些操作数据的东西
+定义数据类
+定义数据存储类
+定义数据过滤类
+"""
 from ctypes import windll
 from dataclasses import dataclass
 from hashlib import md5

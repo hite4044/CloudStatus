@@ -1,3 +1,7 @@
+"""
+预览面板
+提供 服务器预览 的GUI定义文件
+"""
 from enum import Enum
 from os import mkdir
 from os.path import isdir, isfile
@@ -10,10 +14,11 @@ from PIL import Image
 from colour import Color
 
 from gui.events import GetStatusNowEvent
-from gui.widget import ft, CenteredStaticText, CenteredBitmap, get_gradient_bitmap, GradientDirection
-from lib.data import ServerPoint, DataManager
+from gui.widget import ft, CenteredStaticText, CenteredBitmap, GradientBgBinder
+from lib.common_data import common_data
+from lib.data import ServerPoint
 from lib.log import logger
-from lib.skin import request_player_skin, render_player_head
+from lib.skin_loader import request_player_skin, render_player_head
 
 MAX_HAP = 20
 MIN_HAP = 6
@@ -42,39 +47,48 @@ class EasyColor:
 
     def set_luminance(self, luminance: float):
         self.color.set_luminance(luminance)
+        return self
+
+    @property
+    def wxcolor(self) -> wx.Colour:
+        return wx.Colour(self.get_rgb())
+
+    @property
+    def rgb(self) -> list[int]:
+        return [int(255 * c) for c in self.color.rgb]
 
     def get_rgb(self):
-        return [int(255 * c) for c in self.color.rgb]
+        return self.rgb
+
+    def get_wxcolor(self) -> wx.Colour:
+        return self.wxcolor
 
 
 class NameLabel(CenteredStaticText):
     def __init__(self, parent: wx.Window, label: str, size=wx.DefaultSize):
         super().__init__(parent, label=label, size=size)
-        self.color1 = self.GetBackgroundColour()
-        self.color2 = self.GetBackgroundColour()
-        self.bmp = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
-        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.bg_binder = GradientBgBinder(self)
+        self.bg_binder.set_color(self.GetBackgroundColour())
 
     def set_color(self, color: wx.Colour, color2: wx.Colour = wx.NullColour):
-        self.color1 = wx.Colour(color)
-        if not color2.IsOk():
-            self.color2 = wx.Colour(self.color1)
-        self.bmp = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
+        self.bg_binder.set_color(color, color2)
 
-    def on_paint(self, _):
-        dc = wx.PaintDC(self)
-        dc.DrawBitmap(self.bmp, (0, 0))
-        super().on_paint(None)
+
+class PlayerHead(CenteredBitmap):
+    def __init__(self, parent: wx.Window):
+        super().__init__(parent, size=(80, 80))
+        self.bg_binder = GradientBgBinder(self)
+        self.bg_binder.set_color(self.GetBackgroundColour())
+
+    def set_color(self, color: wx.Colour, color2: wx.Colour = wx.NullColour):
+        self.bg_binder.set_color(color, color2)
 
 
 class PlayerCard(wx.Panel):
     def __init__(self, parent: wx.Window, name: str):
         wx.Panel.__init__(self, parent, size=(180, 180))
         self.player = name
-        self.color1 = self.GetBackgroundColour()
-        self.color2 = self.GetBackgroundColour()
-        self.bmp = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
-        self.head = CenteredBitmap(self)
+        self.head = PlayerHead(self)
         self.name_label = NameLabel(self, label=name, size=(-1, 32))
         Thread(target=load_player_head, args=(name, self.load_head, 80)).start()
         self.set_best_font_size()
@@ -83,13 +97,7 @@ class PlayerCard(wx.Panel):
         sizer.Add(self.head, flag=wx.EXPAND, proportion=1)
         sizer.Add(self.name_label, flag=wx.EXPAND, proportion=0)
         self.SetSizer(sizer)
-        self.Bind(wx.EVT_PAINT, self.on_paint)
-        self.Bind(wx.EVT_SIZE, self.on_size)
         self.head.Bind(wx.EVT_RIGHT_UP, self.on_menu_click)
-
-    def on_size(self, event: wx.SizeEvent):
-        event.Skip()
-        self.Refresh()
 
     def on_menu_click(self, _):
         menu = wx.Menu()
@@ -122,29 +130,12 @@ class PlayerCard(wx.Panel):
         right_eye = image.getpixel((58, 58))[:3]
 
         if left_eye == right_eye:
-            color = EasyColor(*right_eye)
-            color.set_luminance(0.6)
-            self.color1 = self.color2 = wx.Colour(color.get_rgb())
-            self.head.set_color(wx.Colour(color.get_rgb()))
-            color.set_luminance(0.8)
-            self.name_label.set_color(wx.Colour(color.get_rgb()))
+            color_left = color_right = EasyColor(*right_eye)
         else:
             color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
-            color_left.set_luminance(0.6)
-            color_right.set_luminance(0.6)
-            self.color1 = wx.Colour(color_left.get_rgb())
-            self.color2 = wx.Colour(color_right.get_rgb())
-            self.head.set_color(wx.Colour(color_left.get_rgb()), wx.Colour(color_right.get_rgb()))
-            color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
-            color_left.set_luminance(0.8)
-            color_right.set_luminance(0.8)
-            self.name_label.set_color(wx.Colour(color_left.get_rgb()), wx.Colour(color_right.get_rgb()))
-        self.bmp = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
+        self.head.set_color(color_left.set_luminance(0.5).wxcolor, color_right.set_luminance(0.7).wxcolor)
+        self.name_label.set_color(color_left.set_luminance(0.9).wxcolor, color_right.set_luminance(0.8).wxcolor)
         self.Refresh()
-
-    def on_paint(self, _):
-        dc = wx.PaintDC(self)
-        dc.DrawBitmap(self.bmp, (0, 0))
 
     def load_head(self, head: wx.Bitmap):
         self.head.SetBitmap(head)
@@ -198,9 +189,9 @@ class PlayerCardList(wx.ScrolledWindow):
 
 
 class OverviewPanel(wx.Panel):
-    def __init__(self, parent: wx.Window, data_manager: DataManager):
+    def __init__(self, parent: wx.Window):
         wx.Panel.__init__(self, parent)
-        self.data_manager = data_manager
+        self.data_manager = common_data.data_manager
         self.time_label = CenteredStaticText(self, label="时间: 2025-02-14 21:51:39")
         self.reset_btn = wx.Button(self.time_label, label="重置")
         self.update_btn = wx.Button(self.time_label, label="更新")
@@ -221,6 +212,7 @@ class OverviewPanel(wx.Panel):
         self.status_label.SetFont(ft(24))
         self.reset_btn.Bind(wx.EVT_BUTTON, self.on_reset)
         self.update_btn.Bind(wx.EVT_BUTTON, self.on_update)
+        # noinspection SpellCheckingInspection
         self.update_data(["hite404", "lwuxianfengguang", "Olaire", "Cherries_", "haijinzi", "water_melon_awa"], time(),
                          ServerStatus.ONLINE)
 

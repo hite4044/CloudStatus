@@ -1,3 +1,7 @@
+"""
+配置面板
+提供 GUI化配置编辑 的GUI定义文件
+"""
 from typing import Any, Callable
 
 from gui.widget import *

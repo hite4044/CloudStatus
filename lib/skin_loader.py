@@ -1,3 +1,6 @@
+"""
+玩家皮肤[获取&渲染]器
+"""
 import uuid
 from base64 import b64decode
 from enum import Enum
@@ -9,7 +12,7 @@ from PIL import Image
 from lib.log import logger
 
 headers = {
-    "User-Agent": "CloudStatus@github LoadPlayerHead lib/skin.py:request_player_head",
+    "User-Agent": "CloudStatus@github LoadPlayerHead lib/skin_loader.py:request_player_head",
     "Content-Type": "application/json"
 }
 

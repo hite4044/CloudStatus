@@ -1,3 +1,6 @@
+"""
+管理配置的文件
+"""
 import json
 from os.path import exists
 from typing import Any, Callable

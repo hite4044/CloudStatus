@@ -1,3 +1,7 @@
+"""
+玩家面板
+提供 玩家在线数据 查看的GUI定义文件
+"""
 from datetime import datetime, timedelta
 from threading import Thread
 from time import perf_counter, strftime, localtime
@@ -6,8 +10,9 @@ import wx
 
 from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO
 from gui.widget import TimeSelector, ft
+from lib.common_data import common_data
 from lib.config import config
-from lib.data import DataManager, Player
+from lib.data import Player
 from lib.log import logger
 
 players_sort_map = {
@@ -254,9 +259,9 @@ class PlayerOnlinePanel(wx.Panel):
 
 
 class PlayerPanel(wx.Notebook):
-    def __init__(self, parent: wx.Window, data_manager: DataManager):
+    def __init__(self, parent: wx.Window):
         super().__init__(parent)
-        self.player_info_panel = PlayerInfoPanel(self, data_manager)
+        self.player_info_panel = PlayerInfoPanel(self)
         self.player_online_panel = PlayerOnlinePanel(self)
         self.AddPage(self.player_info_panel, "玩家信息")
         self.AddPage(self.player_online_panel, "在线时间段")
@@ -267,10 +272,10 @@ class PlayerPanel(wx.Notebook):
 class PlayerInfoPanel(wx.Panel):
     """玩家在线信息面板"""
 
-    def __init__(self, parent: wx.Window, data_manager: DataManager):
+    def __init__(self, parent: wx.Window):
         super().__init__(parent)
         self.active_filter = OnlineTimeFilter()
-        self.data_manager = data_manager  # 初始化数据管理器用于数据操作
+        self.data_manager = common_data.data_manager  # 获取数据管理器用于数据操作
         self.sort_column = 1  # 设置默认排序列为第1列
         self.sort_ascending = False  # 降序排列
         self.activate_datas = {}  # 初始化激活数据字典

@@ -7,8 +7,8 @@ from datetime import datetime, time as dt_time, date as dt_date, timedelta
 from enum import Enum
 
 import wx
-from PIL import ImageDraw
 from PIL import Image
+from PIL import ImageDraw
 from wx.adv import DatePickerCtrl
 
 font_cache: dict[int, wx.Font] = {}
@@ -27,6 +27,54 @@ def ft(size: int):
         font_cache[size] = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
         font_cache[size].SetPointSize(size)
     return font_cache[size]
+
+
+class GradientBgBinder:
+    def __init__(self, window: wx.Window, dir_: GradientDirection = GradientDirection.HORIZONTAL):
+        self.bg_bitmap: wx.Bitmap = wx.NullBitmap
+        self.color1: wx.Colour = wx.NullColour
+        self.color2: wx.Colour = wx.NullColour
+        self.win: wx.Window = window
+        self.direction = dir_
+        self.refresh_bg_call = wx.CallLater(50, self.refresh_bg)
+        window.Bind(wx.EVT_PAINT, self.on_paint)
+        window.Bind(wx.EVT_SIZE, self.on_size)
+        window.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
+        window.SetBackgroundStyle(wx.BG_STYLE_PAINT)
+
+    def set_color(self, color1: wx.Colour, color2: wx.Colour = wx.NullColour):
+        self.color1 = wx.Colour(color1)
+        if color2.IsOk():
+            self.color2 = wx.Colour(color2)
+        else:
+            self.color2 = wx.Colour(color1)
+        self.refresh_bg()
+
+    def refresh_bg(self):
+        self.bg_bitmap = get_gradient_bitmap(self.color1, self.color2, self.win.Size, self.direction)
+        self.win.Refresh()
+        self.refresh_bg_call.Stop()
+
+    def on_size(self, event: wx.SizeEvent):
+        self.refresh_bg_call.Start(50)
+        event.Skip()
+
+    def on_paint(self, event: wx.PaintEvent):
+        dc = wx.PaintDC(self.win)
+        if self.bg_bitmap.IsOk():
+            dc.DrawBitmap(self.bg_bitmap, (0, 0))
+        event.Skip()
+
+    def on_destroy(self, _):
+        self.refresh_bg_call.Stop()
+        self.win.Unbind(wx.EVT_PAINT)
+        self.win.Unbind(wx.EVT_SIZE)
+        self.win.Unbind(wx.EVT_WINDOW_DESTROY)
+        self.win = None
+        self.bg_bitmap = None
+        self.color1 = None
+        self.color2 = None
+        del self
 
 
 def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, int], dir_: GradientDirection):
@@ -104,23 +152,7 @@ class CenteredBitmap(wx.StaticBitmap):
         super().__init__(parent, id_, bitmap, pos, size, style, name)
         self.x_center = x_center
         self.y_center = y_center
-        self.color1 = self.color2 = self.GetBackgroundColour()
-        self.background = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
         self.Bind(wx.EVT_PAINT, self.on_paint)
-        self.Bind(wx.EVT_SIZE, self.on_size)
-
-    def on_size(self, event: wx.SizeEvent):
-        event.Skip()
-        self.background = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
-
-    def set_color(self, color: wx.Colour, color2: wx.Colour = wx.NullColour):
-        self.color1 = wx.Colour(color)
-        if color2.IsOk():
-            self.color2 = wx.Colour(color2)
-        else:
-            self.color2 = wx.Colour(color)
-        self.background = get_gradient_bitmap(self.color1, self.color2, self.Size, GradientDirection.HORIZONTAL)
-        self.Refresh()
 
     def on_paint(self, _):
         try:
@@ -128,7 +160,6 @@ class CenteredBitmap(wx.StaticBitmap):
         except RuntimeError:
             return
         bitmap: wx.Bitmap = self.GetBitmap()
-        dc.DrawBitmap(self.background, (0, 0))
         if bitmap.IsOk():
             size = self.GetSize()
             dc.DrawBitmap(bitmap, ((size[0] - bitmap.GetWidth()) // 2) * int(self.x_center),

@@ -1,3 +1,7 @@
+"""
+状态面板
+提供 在线人数图表 的GUI定义文件
+"""
 from time import localtime, strftime, time, perf_counter
 from bisect import bisect_right
 
@@ -11,6 +15,7 @@ from matplotlib.transforms import TransformedBbox
 
 from gui.events import *
 from gui.widget import *
+from lib.common_data import common_data
 from lib.data import *
 from lib.perf import Counter
 
@@ -32,7 +37,7 @@ class UniqueIntFormatter(Formatter):
 
 
 class StatusPanel(wx.SplitterWindow):
-    def __init__(self, parent: wx.Window, data_manager: DataManager):
+    def __init__(self, parent: wx.Window):
         super().__init__(parent)
         sizer_l = wx.BoxSizer(wx.VERTICAL)
         self.left_panel = wx.Panel(self)
@@ -56,7 +61,7 @@ class StatusPanel(wx.SplitterWindow):
         )
         self.left_panel.SetSizer(sizer_l)
 
-        self.cap_list = CapList(self, data_manager)
+        self.cap_list = CapList(self)
 
         self.SplitVertically(self.left_panel, self.cap_list, 0)
         self.SetSashGravity(0.65)
@@ -67,9 +72,9 @@ class StatusPanel(wx.SplitterWindow):
 
 
 class CapList(wx.Panel):
-    def __init__(self, parent: wx.Window, data_manager: DataManager):
+    def __init__(self, parent: wx.Window):
         super().__init__(parent)
-        self.data_manager = data_manager
+        self.data_manager = common_data.data_manager
         self.points: dict[int, str] = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         title = CenteredStaticText(self, label="状态列表")

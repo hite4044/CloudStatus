@@ -12,6 +12,7 @@ from gui.overview import OverviewPanel, ServerStatus
 from gui.players_info import PlayerPanel
 from gui.status_plot import StatusPanel
 from gui.widget import *
+from lib.common_data import common_data
 from lib.data import *
 from lib.perf import Counter
 
@@ -78,6 +79,7 @@ class GUI(wx.Frame):
         logger.info("初始化GUI")
         self.data_manager = DataManager(config.data_dir)
         self.data_manager.load_data()
+        common_data.data_manager = self.data_manager
         self.init_ui()
         self.server_status = ServerStatus.OFFLINE
         self.event_flag = Event()
@@ -122,9 +124,9 @@ class GUI(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
         name_title = NameTitle(self)
         self.notebook = wx.Notebook(self)
-        self.overview_panel = OverviewPanel(self.notebook, self.data_manager)
-        self.status_panel = StatusPanel(self.notebook, self.data_manager)
-        self.player_view_panel = PlayerPanel(self.notebook, self.data_manager)
+        self.overview_panel = OverviewPanel(self.notebook)
+        self.status_panel = StatusPanel(self.notebook)
+        self.player_view_panel = PlayerPanel(self.notebook)
         self.config_panel = ConfigPanel(self.notebook)
         self.notebook.AddPage(self.overview_panel, "总览")
         self.notebook.AddPage(self.status_panel, "状态")
