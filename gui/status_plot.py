@@ -77,7 +77,7 @@ class CapList(wx.Panel):
         self.data_manager = common_data.data_manager
         self.points: dict[int, str] = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
-        title = CenteredStaticText(self, label="状态列表")
+        title = CenteredText(self, label="状态列表")
         title.SetFont(ft(14))
         self.cap_list = wx.ListCtrl(self, style=wx.LC_REPORT)
         self.cap_list.SetFont(ft(10))
@@ -161,7 +161,7 @@ class DataJumper(wx.Panel):
         self.enable_to_time_check = wx.CheckBox(self, label="启用范围选择")
         self.enable_to_time_check.SetMinSize((-1, height))
         self.from_time_ctrl = TimeSelector(self)
-        self.sep_label = CenteredStaticText(self, label="至")
+        self.sep_label = CenteredText(self, label="至")
         self.sep_label.SetMinSize((-1, height))
         self.to_time_ctrl = TimeSelector(self)
         self.load_btn = wx.Button(self, label="加载")

@@ -36,7 +36,7 @@ class GradientBgBinder:
         self.color2: wx.Colour = wx.NullColour
         self.win: wx.Window = window
         self.direction = dir_
-        self.refresh_bg_call = wx.CallLater(50, self.refresh_bg)
+        self.refresh_bg_call = wx.CallLater(0, self.refresh_bg)
         window.Bind(wx.EVT_PAINT, self.on_paint)
         window.Bind(wx.EVT_SIZE, self.on_size)
         window.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
@@ -56,10 +56,13 @@ class GradientBgBinder:
         self.refresh_bg_call.Stop()
 
     def on_size(self, event: wx.SizeEvent):
-        self.refresh_bg_call.Start(50)
+        if not self.refresh_bg_call.IsRunning():
+            self.refresh_bg_call.Start(100)
         event.Skip()
 
     def on_paint(self, event: wx.PaintEvent):
+        if self.win is None:
+            return
         dc = wx.PaintDC(self.win)
         if self.bg_bitmap.IsOk():
             dc.DrawBitmap(self.bg_bitmap, (0, 0))
@@ -67,9 +70,6 @@ class GradientBgBinder:
 
     def on_destroy(self, _):
         self.refresh_bg_call.Stop()
-        self.win.Unbind(wx.EVT_PAINT)
-        self.win.Unbind(wx.EVT_SIZE)
-        self.win.Unbind(wx.EVT_WINDOW_DESTROY)
         self.win = None
         self.bg_bitmap = None
         self.color1 = None
@@ -102,7 +102,7 @@ def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, i
     return bitmap.ConvertToBitmap()
 
 
-class CenteredStaticText(wx.StaticText):
+class CenteredText(wx.StaticText):
     """使得绘制的文字始终保持在控件中央"""
 
     def __init__(
@@ -136,6 +136,26 @@ class CenteredStaticText(wx.StaticText):
         )
 
 
+class TransparentCenteredText(CenteredText):
+    def __init__(
+            self,
+            parent,
+            id_=wx.ID_ANY,
+            label=wx.EmptyString,
+            pos=wx.DefaultPosition,
+            size=wx.DefaultSize,
+            style=0,
+            name=wx.StaticTextNameStr,
+            x_center=True,
+            y_center=True,
+    ):
+        super().__init__(parent, id_, label, pos, size, style | wx.TRANSPARENT_WINDOW, name)
+        self.x_center = x_center
+        self.y_center = y_center
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
+
+
 class CenteredBitmap(wx.StaticBitmap):
     def __init__(
             self,
@@ -149,21 +169,23 @@ class CenteredBitmap(wx.StaticBitmap):
             x_center=True,
             y_center=True,
     ):
-        super().__init__(parent, id_, bitmap, pos, size, style, name)
+        super().__init__(parent, id_, bitmap, pos, size, style | wx.TRANSPARENT_WINDOW, name)
         self.x_center = x_center
         self.y_center = y_center
         self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
 
     def on_paint(self, _):
         try:
-            dc = wx.PaintDC(self)
+            bdc = wx.PaintDC(self)
         except RuntimeError:
             return
+        dc = wx.GCDC(bdc)
         bitmap: wx.Bitmap = self.GetBitmap()
         if bitmap.IsOk():
             size = self.GetSize()
             dc.DrawBitmap(bitmap, ((size[0] - bitmap.GetWidth()) // 2) * int(self.x_center),
-                          ((size[1] - bitmap.GetHeight()) // 2) * int(self.y_center))
+                          ((size[1] - bitmap.GetHeight()) // 2) * int(self.y_center), True)
 
 
 class FormatedText(wx.StaticText):
@@ -181,12 +203,12 @@ class TimeSelector(wx.Panel):
         self.hour_enable = False
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        label = CenteredStaticText(self, label="日期: ")
+        label = CenteredText(self, label="日期: ")
         label.SetMinSize((-1, height))
         self.date_ctrl = DatePickerCtrl(self, size=(115, height))
         self.enable_hour_check = wx.CheckBox(self)
         self.enable_hour_check.SetMinSize((-1, height))
-        self.label_hour = CenteredStaticText(self, label="时: ")
+        self.label_hour = CenteredText(self, label="时: ")
         self.label_hour.SetMinSize((-1, height))
         self.hour_ctrl = wx.SpinCtrl(self, size=(50, height), min=0, max=23)
         sizer.Add(label, proportion=0)
@@ -229,17 +251,19 @@ class TimeSelector(wx.Panel):
 
 class ToolTip(wx.Frame):
     def __init__(self, parent: wx.Window, text: str):
-        super().__init__(parent, style=wx.FRAME_TOOL_WINDOW | wx.FRAME_FLOAT_ON_PARENT | wx.NO_BORDER)
+        super().__init__(parent, style=wx.FRAME_TOOL_WINDOW | wx.BORDER | wx.TRANSPARENT_WINDOW)
         self.SetBackgroundColour(parent.GetBackgroundColour())
         self.SetFont(parent.GetFont())
         self.parent = parent
-        self.label = wx.StaticText(self, label=text)
+        self.label = wx.StaticText(self, label=text, pos=(10, 0))
+        parent.Bind(wx.EVT_WINDOW_DESTROY, self.on_parent_destroy)
         parent.Bind(wx.EVT_MOTION, self.on_mouse_move)
+        self.Bind(wx.EVT_MOTION, self.on_mouse_move)
         self.label.Bind(wx.EVT_MOTION, self.on_mouse_move)
         self.label.SetDoubleBuffered(True)
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.check_visible)
-        self.timer.Start(300)
+        self.timer.Start(100)
 
     def check_visible(self, _):
         screen_mouse = wx.GetMousePosition()
@@ -248,7 +272,7 @@ class ToolTip(wx.Frame):
 
     def on_mouse_move(self, event: wx.MouseEvent):
         mouse = wx.GetMousePosition()
-        if event.GetEventObject() == self.label:
+        if event.GetEventObject() != self.parent:
             local_pos = mouse[0] - self.parent.ScreenPosition[0], mouse[1] - self.parent.ScreenPosition[1]
             event.SetPosition(wx.Point(*local_pos))
             event.SetEventObject(self.parent)
@@ -267,7 +291,13 @@ class ToolTip(wx.Frame):
         dc = wx.ClientDC(self)
         dc.SetFont(self.parent.GetFont())
         w, h = dc.GetMultiLineTextExtent(tip)
-        w += 3
+        w += 10
+        h += 4
         self.SetSize(wx.Size(w, h))
-        self.label.SetSize(self.GetSize())
+        self.label.SetPosition(wx.Point(3, 0))
         self.Thaw()
+
+    def on_parent_destroy(self, _):
+        self.timer.Stop()
+        self.timer.Destroy()
+        self.Destroy()

@@ -27,7 +27,7 @@ class ConfigLine(wx.Panel):
         self.last_value = str(self.value)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.label = CenteredStaticText(parent, label=self.label, x_center=False)
+        self.label = CenteredText(parent, label=self.label, x_center=False)
         if self.fmt == str:
             self.widget = wx.TextCtrl(parent, value=self.value, style=wx.TE_PROCESS_ENTER)
         elif self.fmt == int:

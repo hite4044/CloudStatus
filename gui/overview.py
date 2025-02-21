@@ -2,6 +2,7 @@
 预览面板
 提供 服务器预览 的GUI定义文件
 """
+from datetime import datetime, timedelta
 from enum import Enum
 from os import mkdir
 from os.path import isdir, isfile
@@ -14,7 +15,7 @@ from PIL import Image
 from colour import Color
 
 from gui.events import GetStatusNowEvent
-from gui.widget import ft, CenteredStaticText, CenteredBitmap, GradientBgBinder
+from gui.widget import ft, CenteredText, CenteredBitmap, GradientBgBinder, TransparentCenteredText, ToolTip
 from lib.common_data import common_data
 from lib.data import ServerPoint
 from lib.log import logger
@@ -36,8 +37,11 @@ def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: i
     if not isfile(f"heads_cache/{name}_{target_size}.png") or no_cache:
         skin = request_player_skin(name)
         head = render_player_head(skin, target_size)
+        head = head.convert("RGBA").resize((80, 80))
         head.save(f"heads_cache/{name}_{target_size}.png")
-    wx.CallAfter(cbk, wx.Bitmap(f"heads_cache/{name}_{target_size}.png"))
+    bitmap = wx.Image()
+    bitmap.LoadFile(f"heads_cache/{name}_{target_size}.png")
+    wx.CallAfter(cbk, bitmap)
 
 
 class EasyColor:
@@ -64,14 +68,27 @@ class EasyColor:
         return self.wxcolor
 
 
-class NameLabel(CenteredStaticText):
+class NameLabel(CenteredText):
     def __init__(self, parent: wx.Window, label: str, size=wx.DefaultSize):
         super().__init__(parent, label=label, size=size)
         self.bg_binder = GradientBgBinder(self)
         self.bg_binder.set_color(self.GetBackgroundColour())
+        self.set_best_font_size()
 
     def set_color(self, color: wx.Colour, color2: wx.Colour = wx.NullColour):
         self.bg_binder.set_color(color, color2)
+
+    def set_best_font_size(self):
+        dc = wx.ClientDC(self)
+        ft_size = 18
+        while True:
+            dc.SetFont(ft(ft_size))
+            size = dc.GetTextExtent(self.GetLabel())
+            if size[0] > 180:
+                ft_size -= 1
+            else:
+                break
+        self.SetFont(ft(ft_size))
 
 
 class PlayerHead(CenteredBitmap):
@@ -91,7 +108,6 @@ class PlayerCard(wx.Panel):
         self.head = PlayerHead(self)
         self.name_label = NameLabel(self, label=name, size=(-1, 32))
         Thread(target=load_player_head, args=(name, self.load_head, 80)).start()
-        self.set_best_font_size()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.head, flag=wx.EXPAND, proportion=1)
@@ -112,18 +128,6 @@ class PlayerCard(wx.Panel):
         logger.info("刷新头像")
         Thread(target=load_player_head, args=(self.player, self.load_head, 80, True)).start()
 
-    def set_best_font_size(self):
-        dc = wx.ClientDC(self)
-        ft_size = 18
-        while True:
-            dc.SetFont(ft(ft_size))
-            size = dc.GetTextExtent(self.name_label.GetLabel())
-            if size[0] > 180:
-                ft_size -= 1
-            else:
-                break
-        self.name_label.SetFont(ft(ft_size))
-
     def load_card_color(self):
         image = Image.open(f"heads_cache/{self.player}_80.png")
         left_eye = image.getpixel((28, 58))[:3]
@@ -135,6 +139,125 @@ class PlayerCard(wx.Panel):
             color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
         self.head.set_color(color_left.set_luminance(0.5).wxcolor, color_right.set_luminance(0.7).wxcolor)
         self.name_label.set_color(color_left.set_luminance(0.9).wxcolor, color_right.set_luminance(0.8).wxcolor)
+        self.Refresh()
+
+    def load_head(self, head: wx.Bitmap):
+        self.head.SetBitmap(head)
+        self.load_card_color()
+        self.Layout()
+
+
+class PlayerDayOnlinePlot(wx.Window):
+    def __init__(self, parent: wx.Window, player: str):
+        super().__init__(parent, id=wx.ID_ANY, pos=wx.DefaultPosition, size=(-1, 300), style=wx.TRANSPARENT_WINDOW,
+                         name='PlayerDayOnlinePlot')
+        self.player = player
+        self.datas: list[float] = [0.1, 0.4, 0.9, 1.0, 0.1, 0.6]
+        self.SetMinSize((-1, 300))
+        Thread(target=self.load_hour_online_data, args=(player,)).start()
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
+        self.Bind(wx.EVT_MOTION, self.on_mouse_move)
+        self.tooltip = ToolTip(self, "")
+
+    def load_hour_online_data(self, player: str):
+        new_data = {i: 0 for i in range(24)}
+        ranges = common_data.data_manager.get_player_time_range(player)
+        days = {i: 1 for i in range(24)}
+        for start, end in ranges:
+            start_date = datetime.fromtimestamp(start)
+            end_date = datetime.fromtimestamp(end)
+            if start_date.hour == end_date.hour:
+                new_data[start_date.hour] += end - start
+                days[start_date.hour] += 1
+            else:
+                time_offset = datetime.fromtimestamp(start).replace(minute=0, second=0, microsecond=0)
+                while True:
+                    days[time_offset.hour] += 1
+                    if time_offset == start_date.replace(minute=0, second=0, microsecond=0):
+                        new_end = timedelta(hours=1) + start_date.replace(minute=0, second=0, microsecond=0)
+                        try:
+                            new_data[time_offset.hour] += new_end.timestamp() - start_date.timestamp()
+                        except OSError:
+                            new_end.timestamp()
+                            start_date.timestamp()
+                            new_end.timestamp() - start_date.timestamp()
+                            new_data[time_offset.hour] += 0
+                            new_data[time_offset.hour] += new_end.timestamp() - start_date.timestamp()
+                            return
+                    elif time_offset == end_date.replace(minute=0, second=0, microsecond=0):
+                        new_start = end_date.replace(minute=0, second=0, microsecond=0)
+                        new_data[time_offset.hour] += end_date.timestamp() - new_start.timestamp()
+                        break
+                    else:
+                        new_data[time_offset.hour] += 3600
+                    time_offset = timedelta(hours=1) + time_offset
+        new_data = {i: new_data[i] / days[i] / 3600 for i in range(24)}
+        wx.CallAfter(self.set_hour_online_data, list(new_data.values()))
+
+    def set_hour_online_data(self, data: list[float]):
+        self.datas = data
+        self.Refresh()
+
+    def on_mouse_move(self, event: wx.MouseEvent):
+        width, height = self.GetClientSize()
+        x = event.GetX()
+        hour = int(x / width * len(self.datas))
+        if not 0 <= hour < len(self.datas):
+            self.tooltip.set_tip("")
+            return
+        text = f"时间: {hour}:00-{hour + 1}:00\n数据: {self.datas[hour]*100:.2f}%"
+        self.tooltip.set_tip(text)
+
+    def on_paint(self, _):
+        try:
+            dc = wx.PaintDC(self)
+        except RuntimeError:
+            return
+        dc.SetPen(wx.Pen('#d4d4d4'))  # 设置边框颜色
+
+        dc.SetBrush(wx.Brush('#c56c00'))  # 设置填充颜色
+        width, height = self.GetClientSize()
+        for i in range(len(self.datas)):
+            dc.DrawRectangle(int(width * i / len(self.datas)), int(height * (1 - self.datas[i])),
+                             int(width / len(self.datas)), int(height * self.datas[i]))
+
+
+class PlayerOnlineWin(wx.Frame):
+    """
+    实现: 头像做图标
+    数据表对应玩家跳转功能
+    """
+
+    def __init__(self, parent: wx.Window, player: str):
+        wx.Frame.__init__(self, parent, title=player + " 在线图表")
+        self.SetFont(parent.GetFont())
+        self.player = player
+        self.head = CenteredBitmap(self)
+        self.name_label = TransparentCenteredText(self, label=player, size=(-1, 32))
+        self.plot = PlayerDayOnlinePlot(self, player)
+        # noinspection PyTypeChecker
+        NameLabel.set_best_font_size(self.name_label)
+        self.bg_binder = GradientBgBinder(self)
+        self.bg_binder.set_color(self.GetBackgroundColour())
+        Thread(target=load_player_head, args=(player, self.load_head, 80)).start()
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.head, 0, wx.EXPAND | wx.TOP | wx.LEFT | wx.RIGHT, 5)
+        sizer.Add(self.name_label, 0, wx.EXPAND | wx.ALL, 5)
+        sizer.Add(self.plot, 1, wx.EXPAND | wx.BOTTOM | wx.LEFT | wx.RIGHT, 5)
+        self.SetSizer(sizer)
+
+    def load_card_color(self):
+        image = Image.open(f"heads_cache/{self.player}_80.png")
+        left_eye = image.getpixel((28, 58))[:3]
+        right_eye = image.getpixel((58, 58))[:3]
+
+        if left_eye == right_eye:
+            color_left = color_right = EasyColor(*right_eye)
+        else:
+            color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
+        self.bg_binder.set_color(color_left.set_luminance(0.5).wxcolor, color_right.set_luminance(0.7).wxcolor)
         self.Refresh()
 
     def load_head(self, head: wx.Bitmap):
@@ -155,6 +278,11 @@ class PlayerCardList(wx.ScrolledWindow):
         self.SetVirtualSize(1316, 630)
         self.SetScrollRate(0, 20)
 
+    def on_card_open(self, event: wx.MouseEvent):
+        card: PlayerCard = event.GetEventObject().GetParent()
+        if card.player in self.cards:
+            PlayerOnlineWin(self, card.player).Show()
+
     def update_players(self, players: list[str]) -> None:
         for card in self.cards.values():
             self.sizer.Detach(card)
@@ -162,6 +290,7 @@ class PlayerCardList(wx.ScrolledWindow):
         self.cards.clear()
         for player in players:
             card = PlayerCard(self, player)
+            card.head.Bind(wx.EVT_LEFT_DCLICK, self.on_card_open)
             self.cards[player] = card
             self.sizer.Add(card, flag=wx.EXPAND)
         self.on_size(None)
@@ -192,10 +321,10 @@ class OverviewPanel(wx.Panel):
     def __init__(self, parent: wx.Window):
         wx.Panel.__init__(self, parent)
         self.data_manager = common_data.data_manager
-        self.time_label = CenteredStaticText(self, label="时间: 2025-02-14 21:51:39")
+        self.time_label = CenteredText(self, label="时间: 2025-02-14 21:51:39")
         self.reset_btn = wx.Button(self.time_label, label="重置")
         self.update_btn = wx.Button(self.time_label, label="更新")
-        self.status_label = CenteredStaticText(self, label="未知")
+        self.status_label = CenteredText(self, label="未知")
         self.card_list = PlayerCardList(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)

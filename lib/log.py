@@ -20,23 +20,20 @@ class CustomFormatter(logging.Formatter):
     }
     COLOR_MAP.setdefault(0, AnsiColorCodes.RESET)
     # noinspection SpellCheckingInspection
-    fmt_styles = {
-        "default": "[%(asctime)s.%(msecs)03d] %(module)s:%(lineno)d [%(levelname)s] : %(message)s",
-        "no_time": "%(module)s.py:%(lineno)d [%(levelname)s] : %(message)s",
+    time_styles = {
+        "default": "[%(asctime)s.%(msecs)03d] %(module)s:%(lineno)d",
+        "no_time": "%(module)s.py:%(lineno)d",
     }
-    formatter = logging.Formatter(fmt_styles["no_time"], datefmt="%y-%m-%d %H:%M:%S")
-
-    def update_formatter(self, time_stamp: bool = True):
-        if time_stamp:
-            self.formatter = logging.Formatter(self.fmt_styles["default"], datefmt="%y-%m-%d %H:%M:%S")
-        else:
-            self.formatter = logging.Formatter(self.fmt_styles["no_time"])
+    level_name = "[%(levelname)s]"
+    formatter = logging.Formatter(time_styles["no_time"], datefmt="%y-%m-%d %H:%M:%S")
 
     def format(self, record):
-        return self.COLOR_MAP.get(record.levelno) + self.formatter.format(record) + AnsiColorCodes.RESET
+        head = self.formatter.format(record)
+        raw_msg = f"{head} {(18 - len(head)) * ' '} [{record.levelname}] : {record.msg}"
+        return self.COLOR_MAP.get(record.levelno) + raw_msg + AnsiColorCodes.RESET
 
 
-logger = logging.getLogger("YunStoreLogger")
+logger = logging.getLogger("CloudStoreLogger")
 logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)

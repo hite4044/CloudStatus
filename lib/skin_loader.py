@@ -98,26 +98,27 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
         skin_info = eval(b64decode(skin_info_str))
         skin_url = skin_info["textures"]["SKIN"]["url"]
         skin_bytes = requests.get(skin_url).content
-        bytes_io = BytesIO(skin_bytes)
     elif way == SkinLoadWay.OFFLINE:
         player_uuid = username_to_uuid(name)
         skin_index = get_default_skin_index(player_uuid)
         with open(DEFAULT_SKINS[skin_index], "rb") as f:
             skin_bytes = f.read()
-        bytes_io = BytesIO(skin_bytes)
     elif way == SkinLoadWay.LITTLE_SKIN:
         player_info = requests.get(f"https://littleskin.cn/csl/{name}.json").json()
-        if player_info["skins"].get("default"):
-            skin_id = player_info["skins"]["default"]
-        elif player_info["skins"].get("slim"):
-            skin_id = player_info["skins"]["slim"]
+        if player_info == {}:
+            skin_bytes = open("assets/default_skin/skin_lost.png", "rb").read()
         else:
-            logger.debug(f"玩家 {name} 没有皮肤, 加载默认皮肤")
-            return request_player_skin(name, SkinLoadWay.OFFLINE)
-        skin_bytes = requests.get(f"https://littleskin.cn/textures/{skin_id}").content
-        bytes_io = BytesIO(skin_bytes)
+            if player_info["skins"].get("default"):
+                skin_id = player_info["skins"]["default"]
+            elif player_info["skins"].get("slim"):
+                skin_id = player_info["skins"]["slim"]
+            else:
+                logger.debug(f"玩家 {name} 没有皮肤, 加载默认皮肤")
+                return request_player_skin(name, SkinLoadWay.OFFLINE)
+            skin_bytes = requests.get(f"https://littleskin.cn/textures/{skin_id}").content
     else:
         raise ValueError("Invalid skin load way")
+    bytes_io = BytesIO(skin_bytes)
     return Image.open(bytes_io).convert("RGBA")
 
 
@@ -126,7 +127,9 @@ def render_player_head(skin: Image.Image, target_size: int = 64) -> Image.Image:
     px_size = int(skin.width / 64)
     head = skin.crop((8 * px_size, 8 * px_size, (8 + 8) * px_size, (8 + 8) * px_size))
     head_wear = skin.crop((40 * px_size, 8 * px_size, (40 + 8) * px_size, (8 + 8) * px_size))
-    render_scale = int(target_size / 8 * px_size)
+    render_scale = int(target_size / 8)
+    if px_size != 1:
+        px_mutil = 1
 
     base_canvas = Image.new("RGBA",  # 新建空白基础画布, 8(基础大小) *px_size(头颅大小) * px_mutil(全头大小)
                             (int(8 * px_size * px_mutil * render_scale), int(8 * px_size * px_mutil * render_scale)),

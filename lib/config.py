@@ -54,4 +54,3 @@ class Configer:
 
 
 config = Configer()
-logger.info("加载依赖库中...")

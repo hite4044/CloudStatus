@@ -195,6 +195,28 @@ class DataManager:
                 json.dump(points, f)
                 logger.info(f"保存文件 [{hash_hex + '.json'}] ...")
 
+    def get_player_time_range(self, player_name: str) -> list[tuple[float, float]]:
+        last_players: set[str] = set()
+        active_start: float = 0
+        result: list[tuple[float, float]] = []
+        points_count = len(self.points_map)
+        for i, point in enumerate(self.points):
+            if i == 0:
+                active_start = point.time
+            now_players = set(p.name for p in point.players)
+            for player in now_players-last_players:
+                if player == player_name:
+                    active_start = point.time
+            for player in last_players-now_players:
+                if player == player_name:
+                    result.append((active_start, point.time))
+                    active_start = 0
+            last_players = now_players
+            if i >= points_count-1:
+                result.append((active_start, point.time))
+        return result
+
+
 
 class DataFilter:
     def __init__(self, from_time: float = None, to_time: float = None):
