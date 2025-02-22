@@ -304,10 +304,10 @@ class Plot(wxagg.FigureCanvasWxAgg):
         time_str = datetime.fromtimestamp(closest_time).strftime('%Y-%m-%d %H:%M:%S')
         players = ""
         for i, player in enumerate(point.players):
-            if i % 3 == 2:
-                players += f"{player.name}\n"
-            elif i == len(point.players) - 1:
+            if i == len(point.players) - 1:
                 players += f"{player.name}"
+            elif i % 3 == 2:
+                players += f"{player.name}\n"
             else:
                 players += f"{player.name}, "
         tooltip_text = f"""时间: {time_str}\n玩家: \n{players}"""
