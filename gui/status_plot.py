@@ -119,20 +119,51 @@ class CapList(wx.Panel):
     def on_item_menu(self, event: wx.ListEvent):
         item = event.GetIndex()
         if item >= 0:
+            def get_data(column: int):
+                return self.cap_list.GetItem(item, column).GetText()
             def copy_data(column: int):
-                text = self.cap_list.GetItem(item, column).GetText()
+                wx.TheClipboard.SetData(wx.TextDataObject(get_data(column)))
+
+            def copy_detail():
+                text = f"ID: {get_data(0)}\n时间: {get_data(1)}\n在线: {get_data(3)}\n玩家们: "
+                player_names = self.cap_list.GetItem(item, 4).GetText().split(", ")
+                players = ""
+                for i, player in enumerate(player_names):
+                    if i == len(player_names) - 1:
+                        players += f"{player}"
+                    elif i % 3 == 2:
+                        players += f"{player}\n"
+                    else:
+                        players += f"{player}, "
+                text += players
                 wx.TheClipboard.SetData(wx.TextDataObject(text))
 
             menu = wx.Menu()
+            line: wx.MenuItem = menu.Append(-1, "复制详情")
+            menu.Bind(wx.EVT_MENU, lambda e: copy_detail(), id=line.GetId())
+            menu.AppendSeparator()
             line: wx.MenuItem = menu.Append(-1, "复制时间")
             menu.Bind(wx.EVT_MENU, lambda e: copy_data(1), id=line.GetId())
             line: wx.MenuItem = menu.Append(-1, "复制玩家列表")
-            menu.Bind(wx.EVT_MENU, lambda e: copy_data(3), id=line.GetId())
+            menu.Bind(wx.EVT_MENU, lambda e: copy_data(4), id=line.GetId())
+            menu.AppendSeparator()
             line: wx.MenuItem = menu.Append(-1, "设为预览")
             menu.Bind(wx.EVT_MENU, lambda e: self.set_as_overview(item), id=line.GetId())
+            line: wx.MenuItem = menu.Append(-1, "删除")
+            menu.Bind(wx.EVT_MENU, lambda e: self.delete_item(item), id=line.GetId())
             self.PopupMenu(menu, event.GetPoint())
         else:
             event.Skip()
+
+    def delete_item(self, item: int):
+        point: ServerPoint = self.data_manager.get_point(self.point_id_mapping[item])
+        self.data_manager.remove_point(point)
+        self.point_id_mapping.pop(item)
+        values = list(self.point_id_mapping.values())
+        self.point_id_mapping.clear()
+        self.point_id_mapping.update(enumerate(values))
+        self.cap_list.SetItemCount(self.cap_list.GetItemCount() - 1)
+        self.cap_list.Refresh()
 
     def set_as_overview(self, item: int):
         point: ServerPoint = self.data_manager.get_point(self.point_id_mapping[item])
