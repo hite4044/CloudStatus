@@ -52,21 +52,6 @@ def translate_status(status: JavaStatusResponse, ping: float) -> ServerPoint:
     )
 
 
-def get_server_status() -> ServerPoint | None:
-    server = JavaServer.lookup(config.addr)
-    try:
-        logger.debug("获取服务器状态")
-        status = server.status()
-        ping = server.ping()
-        point = translate_status(status, ping)
-        gui.server_status = ServerStatus.ONLINE
-        return point
-    except Exception as e:
-        gui.server_status = ServerStatus.OFFLINE
-        logger.error(f"获取服务器状态失败: {e}")
-    return None
-
-
 class NameTitle(CenteredText):
     def __init__(self, parent: wx.Window):
         super().__init__(parent, label=config.server_name)
@@ -91,6 +76,19 @@ class GUI(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.status_flag.set()
         wx.CallLater(200, self.load_points_gui)
+    def get_server_status(self) -> ServerPoint | None:
+        server = JavaServer.lookup(config.addr)
+        try:
+            logger.debug("获取服务器状态")
+            status = server.status()
+            ping = server.ping()
+            point = translate_status(status, ping)
+            self.server_status = ServerStatus.ONLINE
+            return point
+        except Exception as e:
+            self.server_status = ServerStatus.OFFLINE
+            logger.error(f"获取服务器状态失败: {e}")
+        return None
 
     def on_close(self, _):
         logger.info("程序停止中...")
@@ -165,7 +163,7 @@ class GUI(wx.Frame):
         while True:
             during = perf_counter() - last_status
             if during >= config.check_inv:
-                status = get_server_status()
+                status = self.get_server_status()
                 last_status = perf_counter()
                 if status:
                     self.data_manager.add_point(status)
