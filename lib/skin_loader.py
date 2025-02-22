@@ -93,7 +93,8 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
     if way == SkinLoadWay.MOJANG:
         player_info = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{name}").json()
         player_uuid = player_info["id"]
-        player_profile = requests.get(f"https://sessionserver.mojang.com/session/minecraft/profile/{player_uuid}").json()
+        player_profile = requests.get(
+            f"https://sessionserver.mojang.com/session/minecraft/profile/{player_uuid}").json()
         skin_info_str = player_profile["properties"][0]["value"]
         skin_info = eval(b64decode(skin_info_str))
         skin_url = skin_info["textures"]["SKIN"]["url"]
@@ -122,25 +123,22 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
     return Image.open(bytes_io).convert("RGBA")
 
 
-def render_player_head(skin: Image.Image, target_size: int = 64) -> Image.Image:
-    px_mutil = 1.1
+def render_player_head(skin: Image.Image, target_size: int = 80) -> Image.Image:
+    wear_scale = 1.1
     px_size = int(skin.width / 64)
-    head = skin.crop((8 * px_size, 8 * px_size, (8 + 8) * px_size, (8 + 8) * px_size))
-    head_wear = skin.crop((40 * px_size, 8 * px_size, (40 + 8) * px_size, (8 + 8) * px_size))
-    render_scale = int(target_size / 8)
     if px_size != 1:
-        px_mutil = 1
+        wear_scale = 1
+    final_size = int(target_size * wear_scale)
+    pad = (final_size - target_size) // 2
 
-    base_canvas = Image.new("RGBA",  # 新建空白基础画布, 8(基础大小) *px_size(头颅大小) * px_mutil(全头大小)
-                            (int(8 * px_size * px_mutil * render_scale), int(8 * px_size * px_mutil * render_scale)),
+    head = skin.crop((8 * px_size, 8 * px_size, (8 + 8) * px_size, (8 + 8) * px_size))  # 获取原始头颅部分
+    head_wear = skin.crop((40 * px_size, 8 * px_size, (40 + 8) * px_size, (8 + 8) * px_size))  # 获取原始头颅装饰部分
+
+    base_canvas = Image.new("RGBA",  # 新建空白基础画布, 8(基础大小) *px_size(头颅大小) * wear_scale(全头大小)
+                            (final_size, final_size),
                             (0, 0, 0, 0))
-    scaled_head = head.resize(
-        (int(8 * px_size * render_scale), int(8 * px_size * render_scale)),
-        Image.Resampling.BOX)
-    base_canvas.paste(scaled_head, (int((8 * px_size * px_mutil - 8 * px_size) * render_scale / 2),
-                                    int((8 * px_size * px_mutil - 8 * px_size) * render_scale / 2)))
-    scaled_wear = head_wear.resize(
-        (int(8 * px_size * px_mutil * render_scale), int(8 * px_size * px_mutil * render_scale)),
-        Image.Resampling.BOX)
+    scaled_head = head.resize((target_size, target_size), Image.Resampling.BOX)
+    base_canvas.paste(scaled_head, (pad, pad))
+    scaled_wear = head_wear.resize((final_size, final_size), Image.Resampling.BOX)
     base_canvas.paste(scaled_wear, (0, 0), mask=scaled_wear)
     return base_canvas
