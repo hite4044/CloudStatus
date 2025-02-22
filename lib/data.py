@@ -8,8 +8,9 @@ from ctypes import windll
 from dataclasses import dataclass
 from hashlib import md5
 from os import listdir, remove, mkdir
-from os.path import join
+from os.path import join, basename
 from random import randbytes
+from threading import Lock, Thread
 
 from lib.config import *
 from lib.log import logger
@@ -135,19 +136,37 @@ class DataManager:
     def load_data(self):
         """从文件夹中查找并加载数据点"""
         logger.info(f"从 [{self.data_dir}] 加载数据...")
+        loading_threads = []
+        lock = Lock()
         for file in listdir(self.data_dir):
             self.data_files.append(file)  # 把启动时加载的文件名记录下来
             full_path = join(self.data_dir, file)
-            logger.info(f"加载文件 [{file}]")
-            with open(full_path, "r") as f:
-                file_dic: list[dict] = json.load(f)
-            for point_dict in file_dic:
-                point = ServerPoint.from_dict(point_dict)
-                self.points_map[point.id_] = point
+            thread = Thread(target=self.load_a_file, args=(full_path, lock))
+            loading_threads.append(thread)
+            thread.start()
+            if len(loading_threads) >= 8:
+                loading_threads[0].join()
+                loading_threads.pop(0)
+        for thread in loading_threads:
+            thread.join()
 
         sorted_points = sorted(self.points_map.values(), key=lambda pt: pt.time)
         self.points_map = {point.id_: point for point in sorted_points}
         logger.info(f"加载完成，共 {len(self.points_map)} 个数据点")
+
+    def load_a_file(self, file_path: str, lock: Lock):
+        """
+        从给定的文件路径加载数据点
+        :param file_path: 文件路径
+        :param lock: 字典操作的锁
+        """
+        with open(file_path, "r") as f:
+            file_dic: list[dict] = json.load(f)
+        logger.info(f"已加载文件 [{basename(file_path)}]")
+        with lock:
+            for point_dict in file_dic:
+                point = ServerPoint.from_dict(point_dict)
+                self.points_map[point.id_] = point
 
     def save_data(self):
         """
