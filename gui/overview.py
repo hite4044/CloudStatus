@@ -177,36 +177,38 @@ class PlayerDayOnlinePlot(wx.Window):
         """处理出玩家每小时在线的占比"""
         new_data = {i: 0 for i in range(24)}
         ranges = common_data.data_manager.get_player_time_range(player)
-        days = {i: 1 for i in range(24)}
+        days = set()
         for start, end in ranges:
             start_date = datetime.fromtimestamp(start)
             end_date = datetime.fromtimestamp(end)
             if start_date.hour == end_date.hour:
                 new_data[start_date.hour] += end - start
-                days[start_date.hour] += 1
+                days.add(str(start_date.date()))
             else:
-                time_offset = datetime.fromtimestamp(start).replace(minute=0, second=0, microsecond=0)
+                offset_time = datetime.fromtimestamp(start).replace(minute=0, second=0, microsecond=0)
                 while True:
-                    days[time_offset.hour] += 1
-                    if time_offset == start_date.replace(minute=0, second=0, microsecond=0):
+                    days.add(str(offset_time.date()))
+                    if offset_time == start_date.replace(minute=0, second=0, microsecond=0):
                         new_end = timedelta(hours=1) + start_date.replace(minute=0, second=0, microsecond=0)
                         try:
-                            new_data[time_offset.hour] += new_end.timestamp() - start_date.timestamp()
+                            new_data[offset_time.hour] += new_end.timestamp() - start_date.timestamp()
                         except OSError:
                             new_end.timestamp()
                             start_date.timestamp()
                             new_end.timestamp() - start_date.timestamp()
-                            new_data[time_offset.hour] += 0
-                            new_data[time_offset.hour] += new_end.timestamp() - start_date.timestamp()
+                            new_data[offset_time.hour] += new_end.timestamp() - start_date.timestamp()
                             return
-                    elif time_offset == end_date.replace(minute=0, second=0, microsecond=0):
+                    elif offset_time == end_date.replace(minute=0, second=0, microsecond=0):
                         new_start = end_date.replace(minute=0, second=0, microsecond=0)
-                        new_data[time_offset.hour] += end_date.timestamp() - new_start.timestamp()
+                        new_data[offset_time.hour] += end_date.timestamp() - new_start.timestamp()
                         break
                     else:
                         new_data[time_offset.hour] += 3600
                     time_offset = timedelta(hours=1) + time_offset
         new_data = {i: new_data[i] / days[i] / 3600 for i in range(24)}
+                        new_data[offset_time.hour] += 3600
+                    offset_time = timedelta(hours=1) + offset_time
+        new_data = {i: new_data[i] / len(days) / 3600 for i in range(24)}
         wx.CallAfter(self.set_hour_online_data, list(new_data.values()))
 
     def set_hour_online_data(self, data: list[float]):
