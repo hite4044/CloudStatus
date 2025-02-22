@@ -2,8 +2,8 @@
 状态面板
 提供 在线人数图表 的GUI定义文件
 """
-from time import localtime, strftime, time, perf_counter
 from bisect import bisect_right
+from time import localtime, strftime, time, perf_counter
 
 from matplotlib import pyplot as plt
 from matplotlib import rcParams as mpl_rcParams
@@ -75,15 +75,15 @@ class CapList(wx.Panel):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
         self.data_manager = common_data.data_manager
-        self.points: dict[int, str] = {}
+        self.point_id_mapping: dict[int, str] = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         title = CenteredText(self, label="状态列表")
         title.SetFont(ft(14))
-        self.cap_list = wx.ListCtrl(self, style=wx.LC_REPORT)
+        self.cap_list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_VIRTUAL)
         self.cap_list.SetFont(ft(10))
-        cols = [("序号", 55), ("时间", 115), ("在线", 40), ("玩家", 150), ("延迟", 75)]
+        cols = [("序号", 55), ("时间", 115), ("延迟", 75), ("在线", 40), ("玩家", 150)]
         for i, (name, width) in enumerate(cols):
-            if i == 3:
+            if i == 4:
                 self.cap_list.InsertColumn(i, name, width=wx.LIST_AUTOSIZE_USEHEADER, format=wx.LIST_FORMAT_LEFT)
                 continue
             self.cap_list.InsertColumn(i + 1, name, width=width, format=wx.LIST_FORMAT_CENTRE)
@@ -96,10 +96,25 @@ class CapList(wx.Panel):
         self.SetAcceleratorTable(
             wx.AcceleratorTable([wx.AcceleratorEntry(wx.ACCEL_CTRL, ord("A"), ID_SELECT_ALL)])
         )
-        self.cap_list.InsertItem(0, "Get Line Height")
-        self.line_height = self.cap_list.GetItemRect(0).height
-        self.cap_list.DeleteItem(0)
+        self.line_height = 31
+        self.cap_list.SetItemCount(10000)
+        self.cap_list.OnGetItemText = self.OnGetItemText
         self.cap_list.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_item_menu)
+
+    def OnGetItemText(self, item: int, col: int):
+        pt = self.data_manager.get_point(self.point_id_mapping[item])
+        if col == 0:
+            return str(item + 1)
+        elif col == 1:
+            return strftime("%y-%m-%d %H:%M", localtime(pt.time))
+        elif col == 2:
+            return f"{pt.ping:.2f}ms"
+        elif col == 3:
+            return str(pt.online)
+        elif col == 4:
+            return ", ".join([p.name for p in pt.players])
+        else:
+            return ""
 
     def on_item_menu(self, event: wx.ListEvent):
         item = event.GetIndex()
@@ -120,29 +135,24 @@ class CapList(wx.Panel):
             event.Skip()
 
     def set_as_overview(self, item: int):
-        point: ServerPoint = self.data_manager.get_point(self.points[item])
+        point: ServerPoint = self.data_manager.get_point(self.point_id_mapping[item])
         event = SetAsOverviewEvent(point)
         event.SetEventObject(self)
         self.ProcessEvent(event)
 
     def load_point(self, point: ServerPoint, runtime_add: bool = False):
         line = self.cap_list.GetItemCount()
-        self.points[line] = point.id_
-        self.cap_list.InsertItem(line, str(line + 1))
-        self.cap_list.SetItem(line, 1, strftime("%y-%m-%d %H:%M", localtime(point.time)))
-        self.cap_list.SetItem(line, 2, str(point.online))
-        self.cap_list.SetItem(line, 3, ", ".join([p.name for p in point.players]))
-        self.cap_list.SetItem(line, 4, f"{point.ping:.2f}ms")
+        self.point_id_mapping[line] = point.id_
+        self.cap_list.SetItemCount(line + 1)
         if runtime_add:
             self.cap_list.ScrollList(0, (line - 1) * self.line_height)
 
     def points_init(self, points: list[ServerPoint]):
         timer = Counter()
         timer.start()
-        self.cap_list.Freeze()
-        for point in points[:-1]:
-            self.load_point(point)
-        self.cap_list.Thaw()
+        self.cap_list.SetItemCount(len(points))
+        for i, point in enumerate(points):
+            self.point_id_mapping[i] = point.id_
         logger.debug(f"数据点列表初始化用时: {timer.endT()}")
         self.cap_list.ScrollList(0, (self.cap_list.GetItemCount() - 1) * self.line_height)
 
@@ -245,7 +255,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
     def on_mouse_move(self, x: int, y: int):
         if not self.showing_datas:
             return
-        if not self.GetScreenRect().Contains(x+self.GetScreenPosition()[0], y+self.GetScreenPosition()[1]):
+        if not self.GetScreenRect().Contains(x + self.GetScreenPosition()[0], y + self.GetScreenPosition()[1]):
             self.tooltip.set_tip("")
             return
         box: TransformedBbox = self.axes.get_window_extent()
@@ -271,7 +281,6 @@ class Plot(wxagg.FigureCanvasWxAgg):
                 players += f"{player.name}, "
         tooltip_text = f"""时间: {time_str}\n玩家: \n{players}"""
         self.tooltip.set_tip(tooltip_text)
-
 
     def update_filter(self, filter_: DataFilter):
         self.activate_filter = filter_
