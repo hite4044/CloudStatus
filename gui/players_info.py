@@ -16,14 +16,14 @@ from lib.data import Player
 from lib.log import logger
 
 players_sort_map = {
-    0: "x.name",
-    1: "x.total_online_time",
-    2: "x.today_online_time",
-    3: "x.avg_online_per_day",
-    4: "len(x.online_times)",
-    5: "x.avg_online_per_session",
-    6: "x.max_online_per_session",
-    7: "x.last_offline_time",
+    1: "x.name",
+    2: "x.total_online_time",
+    3: "x.today_online_time",
+    4: "x.avg_online_per_day",
+    5: "len(x.online_times)",
+    6: "x.avg_online_per_session",
+    7: "x.max_online_per_session",
+    8: "x.last_offline_time",
 }
 
 
@@ -297,6 +297,7 @@ class PlayerInfoPanel(wx.Panel):
 
         self.player_info_lc = wx.ListCtrl(self, style=wx.LC_REPORT)
         column_map = [
+            ("排名", 50),
             ("玩家名", 250),
             ("总在线时长", 150),
             ("今天在线时长", 150),
@@ -307,7 +308,10 @@ class PlayerInfoPanel(wx.Panel):
             ("最后在线时刻", 200)
         ]
         for i, (name, width) in enumerate(column_map):
-            self.player_info_lc.InsertColumn(i, name, width=width, format=wx.LIST_FORMAT_CENTER)
+            if i == 1:
+                self.player_info_lc.InsertColumn(i + 1, name, width=width)
+            else:
+                self.player_info_lc.InsertColumn(i + 1, name, width=width, format=wx.LIST_FORMAT_CENTER)
         self.start_analyze_btn.SetMaxSize((-1, 50))
         self.start_analyze_btn.SetMinSize((-1, 50))
         self.analyze_gauge.SetMaxSize((-1, 30))
@@ -363,21 +367,22 @@ class PlayerInfoPanel(wx.Panel):
         """填充玩家信息到列表控件"""
         self.player_info_lc.Freeze()
         self.player_info_lc.DeleteAllItems()
-        for player_info in players_info.values():
-            self.add_player(player_info)
+        for i, player_info, in enumerate(players_info.values()):
+            self.add_player(player_info, i + 1)
         self.player_info_lc.Thaw()
 
-    def add_player(self, player: PlayerOnlineInfo):
+    def add_player(self, player: PlayerOnlineInfo, rank: int):
         """添加一组信息进入列表"""
         line = self.player_info_lc.GetItemCount()
-        self.player_info_lc.InsertItem(line, player.name)
-        self.player_info_lc.SetItem(line, 1, string_fmt_time(player.total_online_time))
-        self.player_info_lc.SetItem(line, 2, string_fmt_time(player.today_online_time))
-        self.player_info_lc.SetItem(line, 3, string_fmt_time(player.avg_online_per_day))
-        self.player_info_lc.SetItem(line, 4, str(len(player.online_times)))
-        self.player_info_lc.SetItem(line, 5, string_fmt_time(player.avg_online_per_session))
-        self.player_info_lc.SetItem(line, 6, string_fmt_time(player.max_online_per_session))
-        self.player_info_lc.SetItem(line, 7, strftime("%y-%m-%d %H:%M:%S", localtime(player.last_offline_time)))
+        self.player_info_lc.InsertItem(line, str(rank))
+        self.player_info_lc.SetItem(line, 1, player.name)
+        self.player_info_lc.SetItem(line, 2, string_fmt_time(player.total_online_time))
+        self.player_info_lc.SetItem(line, 3, string_fmt_time(player.today_online_time))
+        self.player_info_lc.SetItem(line, 4, string_fmt_time(player.avg_online_per_day))
+        self.player_info_lc.SetItem(line, 5, str(len(player.online_times)))
+        self.player_info_lc.SetItem(line, 6, string_fmt_time(player.avg_online_per_session))
+        self.player_info_lc.SetItem(line, 7, string_fmt_time(player.max_online_per_session))
+        self.player_info_lc.SetItem(line, 8, strftime("%y-%m-%d %H:%M:%S", localtime(player.last_offline_time)))
 
     def get_player_infos(self) -> dict[str, PlayerOnlineInfo]:
         """获取玩家在线时间信息"""
