@@ -219,7 +219,7 @@ class DataManager:
                     result.append((active_start, point.time))
                     active_start = 0
             last_players = now_players
-            if i >= points_count-1:
+            if i >= points_count-1 and active_start != 0:
                 result.append((active_start, point.time))
         return result
 
