@@ -44,7 +44,9 @@ def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: i
     if not isfile(f"heads_cache/{name}_{target_size}.png") or no_cache:
         skin = request_player_skin(name)
         head = render_player_head(skin, target_size)
-        head = head.convert("RGBA").resize((80, 80))
+        head = head.convert("RGBA")
+        if head.width > 180:
+            head = head.resize((80, 80))
         head.save(f"heads_cache/{name}_{target_size}.png")
     bitmap = wx.Image()
     bitmap.LoadFile(f"heads_cache/{name}_{target_size}.png")
