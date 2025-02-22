@@ -262,6 +262,10 @@ class PlayerOnlineWin(wx.Frame):
         sizer.Add(self.plot, 1, wx.EXPAND | wx.BOTTOM | wx.LEFT | wx.RIGHT, 5)
         self.SetSizer(sizer)
 
+    def set_icon(self):
+        icon = wx.Icon(f"heads_cache/{self.player}_80.png", wx.BITMAP_TYPE_PNG)
+        self.SetIcon(icon)
+
     def load_card_color(self):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
         image = Image.open(f"heads_cache/{self.player}_80.png")
@@ -276,6 +280,7 @@ class PlayerOnlineWin(wx.Frame):
         self.Refresh()
 
     def load_head(self, head: wx.Bitmap):
+        self.set_icon()
         self.head.SetBitmap(head)
         self.load_card_color()
         self.Layout()
