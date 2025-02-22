@@ -1,6 +1,6 @@
 """
 这个文件做一些操作数据的东西
-定义数据类
+定义数据点类
 定义数据存储类
 定义数据过滤类
 """
@@ -44,9 +44,9 @@ def slice_dict(d: dict, start: int, end: int) -> dict:
     按照key值对字典进行排序，并返回指定开始和结束位置的片段。
 
     参数:
-    - d: 要排序和切片的字典。
-    - start: 切片的起始位置。
-    - end: 切片的结束位置。
+    :param d: 要排序+切片的字典
+    :param start: 切片的起始位置
+    :param end: 切片的结束位置
 
     返回:
     - 排序并切片后的字典。
@@ -62,7 +62,7 @@ def slice_dict(d: dict, start: int, end: int) -> dict:
 
 
 class ServerPoint:
-    """一个服务器数据点"""
+    """数据点类"""
 
     def __init__(self, time: float, online: int, players: list[Player], ping: float, **_):
         self.time = time  # (sec)
@@ -90,7 +90,7 @@ class ServerPoint:
 
 class DataManager:
     """
-    用于加载、修改、保存数据
+    用于管理数据点加载、修改、保存的类
     """
 
     def __init__(self, data_dir: str):
@@ -133,7 +133,7 @@ class DataManager:
         self.points_map.pop(point.id_)
 
     def load_data(self):
-        """从预设好的文件夹中加载数据点"""
+        """从文件夹中查找并加载数据点"""
         logger.info(f"从 [{self.data_dir}] 加载数据...")
         for file in listdir(self.data_dir):
             self.data_files.append(file)  # 把启动时加载的文件名记录下来
@@ -181,7 +181,10 @@ class DataManager:
             remove(join(self.data_dir, file))
 
     def dump_points(self, points: list[dict]):
-        """存储一个数据点进文件, 把所有数据点的时间作哈希"""
+        """
+        存储给定的数据点字典到文件, 把所有数据点的时间作哈希作为文件名
+        :param points: 数据点字典列表
+        """
         points_hash = md5(usedforsecurity=False)
         for ready_point in points:
             points_hash.update(str(ready_point["time"]).encode())
@@ -196,6 +199,10 @@ class DataManager:
                 logger.info(f"保存文件 [{hash_hex + '.json'}] ...")
 
     def get_player_time_range(self, player_name: str) -> list[tuple[float, float]]:
+        """
+        获取某个玩家所有在线时间段的列表
+        :param player_name: 玩家名称
+        """
         last_players: set[str] = set()
         active_start: float = 0
         result: list[tuple[float, float]] = []
@@ -219,6 +226,7 @@ class DataManager:
 
 
 class DataFilter:
+    """一个简单的数据过滤器, 通过给定的开始时间和结束时间过滤数据"""
     def __init__(self, from_time: float = None, to_time: float = None):
         self.from_time = from_time
         self.to_time = to_time
