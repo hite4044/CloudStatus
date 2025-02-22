@@ -31,6 +31,13 @@ class ServerStatus(Enum):
 
 
 def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: int = 64, no_cache: bool = False):
+    """
+    加载玩家头像至Bitmap
+    :param name: 玩家名称
+    :param cbk: 加载回调函数
+    :param target_size: 目标渲染大小
+    :param no_cache: 不使用缓存
+    """
     if not isdir("heads_cache"):
         mkdir("heads_cache")
 
@@ -45,6 +52,7 @@ def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: i
 
 
 class EasyColor:
+    """原版的color对象一坨, 自己封装一个"""
     def __init__(self, red: int, green: int, blue: int):
         self.color = Color()
         self.color.set_rgb((red / 255, green / 255, blue / 255))
@@ -69,6 +77,7 @@ class EasyColor:
 
 
 class NameLabel(CenteredText):
+    """玩家名称Label (封装了渐变色)"""
     def __init__(self, parent: wx.Window, label: str, size=wx.DefaultSize):
         super().__init__(parent, label=label, size=size)
         self.bg_binder = GradientBgBinder(self)
@@ -92,6 +101,7 @@ class NameLabel(CenteredText):
 
 
 class PlayerHead(CenteredBitmap):
+    """玩家头像 (封装了渐变色)"""
     def __init__(self, parent: wx.Window):
         super().__init__(parent, size=(80, 80))
         self.bg_binder = GradientBgBinder(self)
@@ -102,6 +112,7 @@ class PlayerHead(CenteredBitmap):
 
 
 class PlayerCard(wx.Panel):
+    """玩家名称Label (封装了渐变色)"""
     def __init__(self, parent: wx.Window, name: str):
         wx.Panel.__init__(self, parent, size=(180, 180))
         self.player = name
@@ -129,6 +140,7 @@ class PlayerCard(wx.Panel):
         Thread(target=load_player_head, args=(self.player, self.load_head, 80, True)).start()
 
     def load_card_color(self):
+        """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
         image = Image.open(f"heads_cache/{self.player}_80.png")
         left_eye = image.getpixel((28, 58))[:3]
         right_eye = image.getpixel((58, 58))[:3]
@@ -148,6 +160,7 @@ class PlayerCard(wx.Panel):
 
 
 class PlayerDayOnlinePlot(wx.Window):
+    """玩家逐小时在线图表"""
     def __init__(self, parent: wx.Window, player: str):
         super().__init__(parent, id=wx.ID_ANY, pos=wx.DefaultPosition, size=(-1, 300), style=wx.TRANSPARENT_WINDOW,
                          name='PlayerDayOnlinePlot')
@@ -161,6 +174,7 @@ class PlayerDayOnlinePlot(wx.Window):
         self.tooltip = ToolTip(self, "")
 
     def load_hour_online_data(self, player: str):
+        """处理出玩家每小时在线的占比"""
         new_data = {i: 0 for i in range(24)}
         ranges = common_data.data_manager.get_player_time_range(player)
         days = {i: 1 for i in range(24)}
@@ -200,6 +214,7 @@ class PlayerDayOnlinePlot(wx.Window):
         self.Refresh()
 
     def on_mouse_move(self, event: wx.MouseEvent):
+        """实现鼠标查看在线几率数据"""
         width, height = self.GetClientSize()
         x = event.GetX()
         hour = int(x / width * len(self.datas))
@@ -225,8 +240,7 @@ class PlayerDayOnlinePlot(wx.Window):
 
 class PlayerOnlineWin(wx.Frame):
     """
-    实现: 头像做图标
-    数据表对应玩家跳转功能
+    一个查看玩家逐小时在线几率的窗口
     """
 
     def __init__(self, parent: wx.Window, player: str):
@@ -249,6 +263,7 @@ class PlayerOnlineWin(wx.Frame):
         self.SetSizer(sizer)
 
     def load_card_color(self):
+        """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
         image = Image.open(f"heads_cache/{self.player}_80.png")
         left_eye = image.getpixel((28, 58))[:3]
         right_eye = image.getpixel((58, 58))[:3]
@@ -267,6 +282,7 @@ class PlayerOnlineWin(wx.Frame):
 
 
 class PlayerCardList(wx.ScrolledWindow):
+    """装一堆玩家卡片的列表"""
     def __init__(self, parent: wx.Window):
         self.old_hgap = 20
         self.old_cols = 10
@@ -279,11 +295,13 @@ class PlayerCardList(wx.ScrolledWindow):
         self.SetScrollRate(0, 20)
 
     def on_card_open(self, event: wx.MouseEvent):
+        """当双击玩家卡片"""
         card: PlayerCard = event.GetEventObject().GetParent()
         if card.player in self.cards:
             PlayerOnlineWin(self, card.player).Show()
 
     def update_players(self, players: list[str]) -> None:
+        """更新其中的玩家"""
         for card in self.cards.values():
             self.sizer.Detach(card)
             card.Destroy()
@@ -300,11 +318,11 @@ class PlayerCardList(wx.ScrolledWindow):
     def on_size(self, _):
         width = self.GetSize()[0]
         self.SetVirtualSize(width, (len(self.cards) // self.old_cols + 1) * (
-                180 + self.sizer.GetHGap()) - self.sizer.GetHGap())
+                180 + self.sizer.GetHGap()) - self.sizer.GetHGap())  # (每卡片高度+卡片间距)*卡片行数-卡片间距
         now_cols = int(width / 185)
-        if now_cols > 1:
+        if now_cols > 1:  # (窗口宽度-卡片宽度和)/卡片列数
             now_hgap = max(MIN_HAP, min(MAX_HAP, (self.GetSize()[0] - (now_cols * 180)) // (now_cols - 1)))
-        else:
+        else:  # 处理宽度极小的情况
             now_hgap = 5
             now_cols = 1
         if self.old_hgap != now_hgap and now_cols <= len(self.cards):
@@ -318,6 +336,7 @@ class PlayerCardList(wx.ScrolledWindow):
 
 
 class OverviewPanel(wx.Panel):
+    """预览面板, 相当于地基"""
     def __init__(self, parent: wx.Window):
         wx.Panel.__init__(self, parent)
         self.data_manager = common_data.data_manager
