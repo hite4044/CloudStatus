@@ -156,6 +156,8 @@ class PlayerCard(wx.Panel):
         self.Refresh()
 
     def load_head(self, head: wx.Bitmap):
+        if not self:
+            return
         self.head.SetBitmap(head)
         self.load_card_color()
         self.Layout()
