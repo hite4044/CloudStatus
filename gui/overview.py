@@ -105,7 +105,7 @@ class NameLabel(CenteredText):
 class PlayerHead(CenteredBitmap):
     """玩家头像 (封装了渐变色)"""
     def __init__(self, parent: wx.Window):
-        super().__init__(parent, size=(80, 80))
+        super().__init__(parent, size=(88, 88))
         self.bg_binder = GradientBgBinder(self)
         self.bg_binder.set_color(self.GetBackgroundColour())
 
@@ -164,11 +164,10 @@ class PlayerCard(wx.Panel):
 class PlayerDayOnlinePlot(wx.Window):
     """玩家逐小时在线图表"""
     def __init__(self, parent: wx.Window, player: str):
-        super().__init__(parent, id=wx.ID_ANY, pos=wx.DefaultPosition, size=(-1, 300), style=wx.TRANSPARENT_WINDOW,
+        super().__init__(parent, id=wx.ID_ANY, pos=wx.DefaultPosition, style=wx.TRANSPARENT_WINDOW,
                          name='PlayerDayOnlinePlot')
         self.player = player
         self.datas: list[float] = [0.1, 0.4, 0.9, 1.0, 0.1, 0.6]
-        self.SetMinSize((-1, 300))
         Thread(target=self.load_hour_online_data, args=(player,)).start()
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
@@ -205,9 +204,6 @@ class PlayerDayOnlinePlot(wx.Window):
                         new_data[offset_time.hour] += end_date.timestamp() - new_start.timestamp()
                         break
                     else:
-                        new_data[time_offset.hour] += 3600
-                    time_offset = timedelta(hours=1) + time_offset
-        new_data = {i: new_data[i] / days[i] / 3600 for i in range(24)}
                         new_data[offset_time.hour] += 3600
                     offset_time = timedelta(hours=1) + offset_time
         new_data = {i: new_data[i] / len(days) / 3600 for i in range(24)}
@@ -225,7 +221,7 @@ class PlayerDayOnlinePlot(wx.Window):
         if not 0 <= hour < len(self.datas):
             self.tooltip.set_tip("")
             return
-        text = f"时间: {hour}:00-{hour + 1}:00\n数据: {self.datas[hour]*100:.2f}%"
+        text = f"时间: {hour}:00-{hour + 1}:00\n数据: {(self.datas[hour]/sum(self.datas))*100:.2f}%"
         self.tooltip.set_tip(text)
 
     def on_paint(self, _):
@@ -248,7 +244,7 @@ class PlayerOnlineWin(wx.Frame):
     """
 
     def __init__(self, parent: wx.Window, player: str):
-        wx.Frame.__init__(self, parent, title=player + " 在线图表")
+        wx.Frame.__init__(self, parent, title=player + " 在线图表", size=(400, 300))
         self.SetFont(parent.GetFont())
         self.player = player
         self.head = CenteredBitmap(self)
