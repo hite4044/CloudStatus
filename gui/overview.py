@@ -161,7 +161,7 @@ class PlayerCardList(wx.ScrolledWindow):
             self.sizer.SetHGap(now_hgap)
             self.sizer.Layout()
             self.old_hgap = now_hgap
-        elif now_cols != self.old_cols:
+        if now_cols != self.old_cols:
             self.sizer.SetCols(now_cols)
             self.sizer.Layout()
             self.old_cols = now_cols
@@ -174,6 +174,7 @@ class PlayerCardList(wx.ScrolledWindow):
             self.sizer.Add(card, flag=wx.EXPAND)
             self.Layout()
             self.Refresh()
+            self.on_size(None)
 
 
 class OverviewPanel(wx.Panel):
