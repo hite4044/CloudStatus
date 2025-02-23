@@ -335,11 +335,11 @@ class ToolTip(wx.Frame):
             event.SetPosition(wx.Point(*local_pos))
             event.SetEventObject(self.parent)
             self.parent.ProcessEvent(event)
-        self.SetPosition((mouse[0], mouse[1] - self.GetSize()[1]))
+        self.SetPosition((mouse[0], mouse[1] - self.GetSize()[1] - 5))
         event.Skip()
 
     def set_tip(self, tip: str = None):
-        if tip is None:
+        if not tip:
             self.Hide()
             return
         else:
@@ -353,6 +353,8 @@ class ToolTip(wx.Frame):
         h += 4
         self.SetSize(wx.Size(w, h))
         self.label.SetPosition(wx.Point(3, 0))
+        mouse = wx.GetMousePosition()
+        self.SetPosition((mouse[0], mouse[1] - self.GetSize()[1] - 5))
         self.Thaw()
 
     def on_parent_destroy(self, _):
