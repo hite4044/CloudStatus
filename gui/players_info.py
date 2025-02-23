@@ -9,7 +9,7 @@ from time import perf_counter, strftime, localtime
 import wx
 
 from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO
-from gui.widget import TimeSelector, ft
+from gui.widget import TimeSelector, PlayerOnlineWin, ft
 from lib.common_data import common_data
 from lib.config import config
 from lib.data import Player
@@ -327,9 +327,14 @@ class PlayerInfoPanel(wx.Panel):
         self.analyze_thread = Thread(target=self.analyze_players)
         self.start_analyze_btn.Bind(wx.EVT_BUTTON, self.start_analyze)
         self.player_info_lc.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_click)
+        self.player_info_lc.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_open_hour_online_win)
 
         self.reset_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
         self.load_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
+
+    def on_open_hour_online_win(self, event: wx.ListEvent):
+        player: str = self.player_info_lc.GetItemText(event.GetIndex(), 1)
+        PlayerOnlineWin(self, player).Show()
 
     def on_filter_update(self, event: wx.Event):
         if event.GetEventObject() == self.reset_btn:
