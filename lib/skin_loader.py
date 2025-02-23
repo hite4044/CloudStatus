@@ -7,7 +7,7 @@ from enum import Enum
 from io import BytesIO
 
 import requests
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from lib.log import logger
 
@@ -88,7 +88,7 @@ def username_to_uuid(username: str) -> uuid.UUID:
     return uuid.uuid3(namespace, username_clean)
 
 
-def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -> Image.Image:
+def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -> Image.Image | None:
     logger.debug(f"请求玩家[{name}]头像, 方式: {way}")
     if way == SkinLoadWay.MOJANG:
         player_info = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{name}").json()
@@ -107,7 +107,7 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
     elif way == SkinLoadWay.LITTLE_SKIN:
         player_info = requests.get(f"https://littleskin.cn/csl/{name}.json").json()
         if player_info == {}:
-            skin_bytes = open("assets/default_skin/skin_lost.png", "rb").read()
+            return None
         else:
             if player_info["skins"].get("default"):
                 skin_id = player_info["skins"]["default"]
@@ -120,7 +120,11 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
     else:
         raise ValueError("Invalid skin load way")
     bytes_io = BytesIO(skin_bytes)
-    return Image.open(bytes_io).convert("RGBA")
+    try:
+        return Image.open(bytes_io).convert("RGBA")
+    except UnidentifiedImageError:
+        return None
+
 
 
 def render_player_head(skin: Image.Image, target_size: int = 80) -> Image.Image:
