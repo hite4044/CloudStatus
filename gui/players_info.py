@@ -193,7 +193,7 @@ class PlayerOnlinePanel(wx.Panel):
 
         self.data_sizer = wx.FlexGridSizer(0, 2, 5, 5)
         self.data_panel.SetFont(ft(36))
-        self.data_sizer.Add(wx.StaticText(self.data_panel, label="这里找不到数据 /_ \\"), wx.EXPAND)
+        self.data_sizer.Add(wx.StaticText(self.data_panel, label="这里找不到数据 /_ \\ \n你可以试试先在左边分析下"), wx.EXPAND)
         self.data_panel.SetFont(ft(12))
         self.data_panel.SetSizer(self.data_sizer)
 
@@ -263,7 +263,7 @@ class PlayerPanel(wx.Notebook):
         super().__init__(parent)
         self.player_info_panel = PlayerInfoPanel(self)
         self.player_online_panel = PlayerOnlinePanel(self)
-        self.AddPage(self.player_info_panel, "玩家信息")
+        self.AddPage(self.player_info_panel, "在线信息")
         self.AddPage(self.player_online_panel, "在线时间段")
         self.player_info_panel.Bind(EVT_PLAYER_ONLINE_INFO,
                                     lambda e: self.player_online_panel.update_data(e.players_info))

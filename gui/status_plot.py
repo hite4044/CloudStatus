@@ -77,7 +77,7 @@ class CapList(wx.Panel):
         self.data_manager = common_data.data_manager
         self.point_id_mapping: dict[int, str] = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
-        title = CenteredText(self, label="状态列表")
+        title = CenteredText(self, label="数据点列表")
         title.SetFont(ft(14))
         self.cap_list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_VIRTUAL)
         self.cap_list.SetFont(ft(10))
