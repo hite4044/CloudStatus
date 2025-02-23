@@ -144,7 +144,7 @@ class DataManager:
             thread = Thread(target=self.load_a_file, args=(full_path, lock))
             loading_threads.append(thread)
             thread.start()
-            if len(loading_threads) >= 8:
+            if len(loading_threads) >= config.data_load_threads:
                 loading_threads[0].join()
                 loading_threads.pop(0)
         for thread in loading_threads:

@@ -17,6 +17,7 @@ class Configer:
     saved_per_points: int = 10
     fix_sep: float = 300.0
     min_online_time: int = 60
+    data_load_threads: int = 8
     data_dir: str = "./data"
     enable_data_save: bool = True
 

@@ -97,6 +97,7 @@ class ConfigPanel(wx.Panel):
             "min_online_time": ["最小在线时间", int, config.min_online_time],
             "fix_sep": ["数据空隙修复间隔", float, config.fix_sep],
             "data_dir": ["数据文件夹", str, config.data_dir],
+            "data_load_threads": ["数据加载线程数", int, config.data_load_threads],
             "enable_data_save": ["启用保存数据功能", bool, config.enable_data_save]
         }
         sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
