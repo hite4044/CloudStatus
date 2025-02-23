@@ -109,9 +109,12 @@ class GradientBgBinder:
         self.refresh_bg()
 
     def refresh_bg(self):
-        self.bg_bitmap = get_gradient_bitmap(self.color1, self.color2, self.win.Size, self.direction)
-        self.win.Refresh()
         self.refresh_bg_call.Stop()
+        bitmap = get_gradient_bitmap(self.color1, self.color2, self.win.Size, self.direction)
+        if bitmap is None:
+            return
+        self.bg_bitmap = bitmap
+        self.win.Refresh()
 
     def on_size(self, event: wx.SizeEvent):
         if not self.refresh_bg_call.IsRunning():
@@ -135,7 +138,7 @@ class GradientBgBinder:
         del self
 
 
-def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, int], dir_: GradientDirection):
+def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, int], dir_: GradientDirection) -> wx.Bitmap | None:
     width, height = size
     if color1.GetRGB() == color2.GetRGB():
         image = Image.new("RGB", (width, height), color1.GetRGB())
@@ -157,6 +160,8 @@ def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, i
         else:
             raise ValueError("Invalid direction")
     bitmap = wx.Image(image.width, image.height, image.tobytes())
+    if not bitmap.IsOk():
+        return None
     return bitmap.ConvertToBitmap()
 
 

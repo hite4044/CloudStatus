@@ -166,6 +166,15 @@ class PlayerCardList(wx.ScrolledWindow):
             self.sizer.Layout()
             self.old_cols = now_cols
 
+    def add_player(self, player: str):
+        if player not in self.cards:
+            card = PlayerCard(self, player)
+            card.head.Bind(wx.EVT_LEFT_DCLICK, self.on_card_open)
+            self.cards[player] = card
+            self.sizer.Add(card, flag=wx.EXPAND)
+            self.Layout()
+            self.Refresh()
+
 
 class OverviewPanel(wx.Panel):
     """预览面板, 相当于地基"""
@@ -205,6 +214,9 @@ class OverviewPanel(wx.Panel):
         event = GetStatusNowEvent()
         event.SetEventObject(self)
         self.ProcessEvent(event)
+
+    def add_player(self, player: str):
+        self.card_list.add_player(player)
 
     def update_data(self, players: list[str], timestamp: float, status: ServerStatus) -> None:
         self.Freeze()

@@ -8,7 +8,7 @@ from time import perf_counter, strftime, localtime
 
 import wx
 
-from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO
+from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO, AddPlayerOverviewEvent
 from gui.widget import TimeSelector, PlayerOnlineWin, ft
 from lib.common_data import common_data
 from lib.config import config
@@ -329,13 +329,54 @@ class PlayerInfoPanel(wx.Panel):
         self.analyze_thread = Thread(target=self.analyze_players)
         self.start_analyze_btn.Bind(wx.EVT_BUTTON, self.start_analyze)
         self.player_info_lc.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_click)
-        self.player_info_lc.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_open_hour_online_win)
+        self.player_info_lc.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_menu)
 
         self.reset_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
         self.load_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
 
-    def on_open_hour_online_win(self, event: wx.ListEvent):
-        player: str = self.player_info_lc.GetItemText(event.GetIndex(), 1)
+    def on_menu(self, _):
+        first = self.player_info_lc.GetFirstSelected()
+        if first == -1:
+            return
+        selections = []
+        while first != -1:
+            selections.append(first)
+            first = self.player_info_lc.GetNextSelected(first)
+        first = selections[0]
+
+        def get_data(line, column) -> str:
+            return self.player_info_lc.GetItemText(line, column)
+
+        def copy_detail():
+            text = f"玩家: {get_data(first, 1)}\n"
+            text += f"总在线时长: {get_data(first, 2)}\n"
+            text += f"今天在线时长: {get_data(first, 3)}\n"
+            text += f"天平均在线: {get_data(first, 4)}\n"
+            text += f"在线次数: {get_data(first, 5)}\n"
+            text += f"平均每次在线: {get_data(first, 6)}\n"
+            text += f"最长单次在线: {get_data(first, 7)}\n"
+            text += f"最后在线时刻: {get_data(first, 8)}"
+            wx.TheClipboard.SetData(wx.TextDataObject(text))
+
+        menu = wx.Menu()
+        if len(selections) == 1:
+            menu.Append(1, "复制详情")
+            menu.Bind(wx.EVT_MENU, copy_detail, id=1)
+            menu.Append(2, "查看逐小时在线分析")
+            menu.Bind(wx.EVT_MENU, lambda _: self.open_hour_online_win(get_data(first, 1)), id=1)
+            menu.Append(3, f"添加[{get_data(first, 1)}]至预览")
+        else:
+            menu.Append(3, f"添加[{len(selections)}]个玩家至预览")
+        menu.Bind(wx.EVT_MENU, lambda _: self.add_player_to_preview(selections), id=3)
+        self.PopupMenu(menu)
+
+    def add_player_to_preview(self, selections: list[int]):
+        for player in [self.player_info_lc.GetItemText(i, 1) for i in selections]:
+            event = AddPlayerOverviewEvent(player)
+            event.SetEventObject(self)
+            self.ProcessEvent(event)
+
+    def open_hour_online_win(self, player: str):
         PlayerOnlineWin(self, player).Show()
 
     def on_filter_update(self, event: wx.Event):

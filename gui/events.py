@@ -17,6 +17,8 @@ csEVT_PAUSE_STATUS = wx.NewEventType()
 EVT_PAUSE_STATUS = wx.PyEventBinder(csEVT_PAUSE_STATUS)
 csEVT_SET_AS_OVERVIEW = wx.NewEventType()
 EVT_SET_AS_OVERVIEW = wx.PyEventBinder(csEVT_SET_AS_OVERVIEW)
+csEVT_ADD_PLAYER_OVERVIEW = wx.NewEventType()
+EVT_ADD_PLAYER_OVERVIEW = wx.PyEventBinder(csEVT_ADD_PLAYER_OVERVIEW)
 
 
 class FilterChangeEvent(wx.PyCommandEvent):
@@ -46,3 +48,8 @@ class SetAsOverviewEvent(wx.PyCommandEvent):
     def __init__(self, point: ServerPoint):
         wx.PyCommandEvent.__init__(self, csEVT_SET_AS_OVERVIEW, wx.ID_ANY)
         self.point = point
+
+class AddPlayerOverviewEvent(wx.PyCommandEvent):
+    def __init__(self, player: str):
+        wx.PyCommandEvent.__init__(self, csEVT_ADD_PLAYER_OVERVIEW, wx.ID_ANY)
+        self.player = player
