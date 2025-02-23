@@ -274,7 +274,9 @@ class PlayerInfoPanel(wx.Panel):
 
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
-        self.active_filter = OnlineTimeFilter()
+        day_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = timedelta(days=1) + day_start
+        self.active_filter = OnlineTimeFilter(day_start.timestamp(), day_end.timestamp())
         self.data_manager = common_data.data_manager  # 获取数据管理器用于数据操作
         self.sort_column = 1  # 设置默认排序列为第1列
         self.sort_ascending = False  # 降序排列
@@ -338,7 +340,9 @@ class PlayerInfoPanel(wx.Panel):
 
     def on_filter_update(self, event: wx.Event):
         if event.GetEventObject() == self.reset_btn:
-            self.active_filter = OnlineTimeFilter()
+            day_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = timedelta(days=1) + day_start
+            self.active_filter = OnlineTimeFilter(day_start.timestamp(), day_end.timestamp())
         else:
             if self.time_selector.hour_enable:
                 r = self.time_selector.hour_enable = False
