@@ -30,9 +30,10 @@ players_sort_map = {
 class PlayerOnlineInfo:
     """一个玩家的在线信息"""
 
-    def __init__(self, name: str, last_offline_time: int):
+    def __init__(self, name: str, last_offline_time: float):
         self.name: str = name
         self.last_offline_time: float = last_offline_time
+        self.join_server_time: float = last_offline_time
         self.total_online_time: float = 0
         self.today_online_time: float = 0
         self.avg_online_per_day: float = 0
@@ -307,7 +308,8 @@ class PlayerInfoPanel(wx.Panel):
             ("在线次数", 100),
             ("平均每次在线", 150),
             ("最长单次在线", 150),
-            ("最后在线时刻", 200)
+            ("最后在线时刻", 200),
+            ("进服时间", 200)
         ]
         for i, (name, width) in enumerate(column_map):
             if i == 1:
@@ -355,7 +357,8 @@ class PlayerInfoPanel(wx.Panel):
             text += f"在线次数: {get_data(first, 5)}\n"
             text += f"平均每次在线: {get_data(first, 6)}\n"
             text += f"最长单次在线: {get_data(first, 7)}\n"
-            text += f"最后在线时刻: {get_data(first, 8)}"
+            text += f"最后在线时刻: {get_data(first, 8)}\n"
+            text += f"进服时间: {get_data(first, 9)}"
             wx.TheClipboard.SetData(wx.TextDataObject(text))
 
         menu = wx.Menu()
@@ -433,6 +436,7 @@ class PlayerInfoPanel(wx.Panel):
         self.player_info_lc.SetItem(line, 6, string_fmt_time(player.avg_online_per_session))
         self.player_info_lc.SetItem(line, 7, string_fmt_time(player.max_online_per_session))
         self.player_info_lc.SetItem(line, 8, strftime("%y-%m-%d %H:%M:%S", localtime(player.last_offline_time)))
+        self.player_info_lc.SetItem(line, 9, strftime("%y-%m-%d %H:%M:%S", localtime(player.join_server_time)))
 
     def get_player_infos(self) -> dict[str, PlayerOnlineInfo]:
         """获取玩家在线时间信息"""
