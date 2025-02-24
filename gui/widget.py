@@ -452,7 +452,7 @@ class PlayerOnlineWin(wx.Frame):
     """
 
     def __init__(self, parent: wx.Window, player: str):
-        wx.Frame.__init__(self, parent, title=player + " 在线图表", size=(400, 300))
+        wx.Frame.__init__(self, parent, title=player + " 逐小时在线分析", size=(400, 300))
         self.SetFont(parent.GetFont())
         self.player = player
         self.head = CenteredBitmap(self)
