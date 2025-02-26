@@ -24,6 +24,7 @@ players_sort_map = {
     6: "x.avg_online_per_session",
     7: "x.max_online_per_session",
     8: "x.last_offline_time",
+    9: "x.join_server_time"
 }
 
 
