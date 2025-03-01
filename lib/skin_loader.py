@@ -92,6 +92,9 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
     logger.debug(f"请求玩家[{name}]头像, 方式: {way}")
     if way == SkinLoadWay.MOJANG:
         player_info = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{name}").json()
+        if not player_info.get("id"):
+            logger.debug(f"玩家 {name} 没有皮肤, 加载默认皮肤")
+            return request_player_skin(name, SkinLoadWay.OFFLINE)
         player_uuid = player_info["id"]
         player_profile = requests.get(
             f"https://sessionserver.mojang.com/session/minecraft/profile/{player_uuid}").json()

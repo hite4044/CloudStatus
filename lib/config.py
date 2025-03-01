@@ -20,6 +20,7 @@ class Configer:
     data_load_threads: int = 8
     data_dir: str = "./data"
     enable_data_save: bool = True
+    use_little_skin: bool = False
 
     def __init__(self):
         self.config_vars = {}

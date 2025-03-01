@@ -17,7 +17,8 @@ from colour import Color
 from wx.adv import DatePickerCtrl
 
 from lib.common_data import common_data
-from lib.skin_loader import request_player_skin, render_player_head
+from lib.config import config
+from lib.skin_loader import request_player_skin, render_player_head, SkinLoadWay
 
 font_cache: dict[int, wx.Font] = {}
 maxsize = 1919810
@@ -49,7 +50,7 @@ def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: i
         mkdir("heads_cache")
 
     if not isfile(f"heads_cache/{name}_{target_size}.png") or no_cache:
-        skin = request_player_skin(name)
+        skin = request_player_skin(name, SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG)
         if skin is None:
             head = Image.open("assets/default_skin/error_head.png")
         else:

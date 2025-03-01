@@ -99,7 +99,8 @@ class ConfigPanel(wx.Panel):
             "data_dir": ["数据文件夹", str, config.data_dir],
             "data_load_threads": ["数据加载线程数", int, config.data_load_threads],
             "enable_data_save": ["启用保存数据功能", bool, config.enable_data_save],
-            "server_name": ["服务器名", str, config.server_name]
+            "server_name": ["服务器名", str, config.server_name],
+            "use_little_skin": ["使用LittleSkin", bool, config.use_little_skin]
         }
         sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         self.SetFont(ft(11))
