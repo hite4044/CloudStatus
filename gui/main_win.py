@@ -6,6 +6,7 @@ from matplotlib import rcParams as mpl_rcParams
 from mcstatus import JavaServer
 from mcstatus.status_response import JavaStatusResponse
 
+from gui.about import AboutPanel
 from gui.config import ConfigPanel
 from gui.events import EVT_GET_STATUS_NOW, EVT_PAUSE_STATUS, EVT_SET_AS_OVERVIEW, SetAsOverviewEvent, \
     EVT_ADD_PLAYER_OVERVIEW, AddPlayerOverviewEvent
@@ -127,10 +128,12 @@ class GUI(wx.Frame):
         self.status_panel = StatusPanel(self.notebook)
         self.player_view_panel = PlayerPanel(self.notebook)
         self.config_panel = ConfigPanel(self.notebook)
+        self.about_panel = AboutPanel(self.notebook)
         self.notebook.AddPage(self.overview_panel, "总览")
         self.notebook.AddPage(self.status_panel, "状态")
         self.notebook.AddPage(self.player_view_panel, "玩家")
         self.notebook.AddPage(self.config_panel, "配置")
+        self.notebook.AddPage(self.about_panel, "关于")
         sizer.Add(name_title, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=5)
         sizer.Add(wx.StaticLine(self), flag=wx.EXPAND | wx.TOP | wx.BOTTOM, border=5)
         sizer.Add(self.notebook, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, border=5)
