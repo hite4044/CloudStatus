@@ -332,12 +332,16 @@ class Plot(wxagg.FigureCanvasWxAgg):
         if event.LeftDown():
             self.start_drag = event.GetX()
             self.start_offset = self.offset * 1
+            self.tooltip.set_tip("")
             return
         elif event.Dragging():
             if self.start_drag == 0:
                 return
             mouse_offset = (self.start_drag - event.GetX()) * self.scale / 2  # 考虑缩放比例
-            self.offset = self.start_offset + int(mouse_offset / self.scale)
+            self.offset = self.start_offset + int(mouse_offset / self.scale * 4)
+        elif event.LeftUp():
+            self.start_drag = self.start_offset = 0
+            self.on_mouse_move(event.GetX(), event.GetY())
         elif event.GetWheelRotation():
             last_scale = self.scale + 1 - 1
             if event.GetWheelRotation() > 0:
