@@ -5,10 +5,7 @@
 import os
 from copy import copy
 from dataclasses import dataclass
-from os import rmdir
 from typing import Any
-
-from winsound import Beep
 
 from gui.events import ApplyValueEvent, EVT_APPLY_VALUE
 from gui.widget import *
