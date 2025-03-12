@@ -21,7 +21,7 @@ class PlayerDayOnlinePlot(wx.Window):
     def load_hour_online_data(self, player: str):
         """处理出玩家每小时在线的占比"""
         new_data = {i: 0 for i in range(24)}
-        ranges = common_data.data_manager.get_player_time_range(player)
+        ranges = common_data.data_manager.get_player_online_ranges(player)
         days = set()
         for start, end in ranges:
             start_date = datetime.fromtimestamp(start)

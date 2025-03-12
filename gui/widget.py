@@ -366,3 +366,78 @@ class ToolTip(wx.Frame):
         self.timer.Stop()
         self.timer.Destroy()
         self.Destroy()
+
+
+class LabeledData(wx.Panel):
+    def __init__(self, parent: wx.Window, label: str, data: str):
+        super().__init__(parent)
+        self.SetWindowStyle(wx.SIMPLE_BORDER)
+        self.label_t = wx.StaticText(self, label=label)
+        self.data_t = wx.StaticText(self, label=data)
+        self.label_t.SetForegroundColour(wx.Colour(152, 152, 152))
+        self.label_t.SetFont(ft(12))
+        self.data_t.SetFont(ft(20))
+        v_sizer = wx.BoxSizer(wx.VERTICAL)
+        v_sizer.AddSpacer(10)
+        v_sizer.Add(self.label_t)
+        v_sizer.Add(self.data_t)
+        v_sizer.AddSpacer(10)
+        h_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        h_sizer.AddSpacer(10)
+        h_sizer.Add(v_sizer)
+        h_sizer.AddSpacer(10)
+        self.SetSizer(h_sizer)
+
+        self.label_t.Bind(wx.EVT_LEFT_DCLICK, lambda e: self.ProcessEvent(e))
+        self.data_t.Bind(wx.EVT_LEFT_DCLICK, lambda e: self.ProcessEvent(e))
+
+    def SetLabel(self, label):
+        self.label_t.SetLabel(label)
+
+    def SetData(self, data: str):
+        self.data_t.SetLabel(data)
+
+class DataShowDialog(wx.Dialog):
+    def __init__(self, parent: wx.Window, data: list[str], header: str = "数据", title: str = "数据"):
+        super().__init__(parent, style = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER, size=(380, 400))
+        self.SetFont(ft(11))
+        self.SetTitle(title)
+        self.data_lc = wx.ListCtrl(self, style=wx.LC_REPORT)
+        self.data_lc.InsertColumn(0, header, width=300)
+        for i, d in enumerate(data):
+            self.data_lc.InsertItem(i, d)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.data_lc, 1, wx.EXPAND | wx.ALL, 10)
+        self.SetSizer(sizer)
+
+        self.data_lc.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.menu)
+
+    def get_selection(self) -> list[int]:
+        first = self.data_lc.GetFirstSelected()
+        if first == -1:
+            return []
+        result = []
+        while first != -1:
+            result.append(first)
+            first = self.data_lc.GetNextSelected(first)
+        return result
+
+    def menu(self, event: wx.ListEvent):
+        event.Skip()
+        selection = self.get_selection()
+        if not selection:
+            return
+        menu = wx.Menu()
+        menu.Append(1, "复制数据")
+        menu.Bind(wx.EVT_MENU, self.copy_selected, id=1)
+        self.PopupMenu(menu)
+
+    def copy_selected(self, _):
+        selection = self.get_selection()
+        if not selection:
+            return
+        data = [self.data_lc.GetItem(i, 0).GetText() for i in selection]
+        clip: wx.Clipboard = wx.TheClipboard
+        clip.Open()
+        clip.SetData(wx.TextDataObject("\n".join(data)))
+        clip.Close()

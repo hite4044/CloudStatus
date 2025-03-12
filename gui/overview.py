@@ -7,6 +7,7 @@ from time import strftime, localtime, time
 
 from gui.events import GetStatusNowEvent
 from gui.online_widget import PlayerOnlineWin
+from gui.players_info import string_fmt_time
 from gui.widget import *
 from lib.common_data import common_data
 from lib.data import ServerPoint
@@ -174,6 +175,89 @@ class PlayerCardList(wx.ScrolledWindow):
             self.on_size(None)
 
 
+class PlayerOnlineOverviewPanel(wx.Panel):
+    def __init__(self, parent: wx.Window):
+        super().__init__(parent)
+        self.activate_total_players = []
+        self.activate_today_players = []
+        self.activate_active_players = []
+        self.data_manager = common_data.data_manager
+
+        self.total_players = LabeledData(self, label="玩家总数", data="0")
+        self.today_players = LabeledData(self, label="今日在线", data="0")
+        self.active_players = LabeledData(self, label="活跃人数", data="0")
+        self.total_online_time = LabeledData(self, label="总在线时长", data="0")
+        sizer = wx.GridSizer(1, 4, 10, 10)
+        sizer.Add(self.total_players, flag=wx.EXPAND)
+        sizer.Add(self.today_players, flag=wx.EXPAND)
+        sizer.Add(self.active_players, flag=wx.EXPAND)
+        sizer.Add(self.total_online_time, flag=wx.EXPAND)
+        self.SetSizer(sizer)
+
+        timer = wx.Timer(self)
+        timer.Bind(wx.EVT_TIMER, self.update_data)
+        timer.Start(60 * 1000)
+        self.update_data()
+        self.total_players.Bind(wx.EVT_LEFT_DCLICK, self.total_players_cbk)
+        self.today_players.Bind(wx.EVT_LEFT_DCLICK, self.today_players_cbk)
+        self.active_players.Bind(wx.EVT_LEFT_DCLICK, self.active_players_cbk)
+
+    def total_players_cbk(self, _):
+        dialog = DataShowDialog(self, self.activate_total_players, "玩家", "所有玩家")
+        dialog.ShowModal()
+
+    def today_players_cbk(self, _):
+        dialog = DataShowDialog(self, self.activate_today_players, "玩家", "今日在线玩家")
+        dialog.ShowModal()
+
+    def active_players_cbk(self, _):
+        dialog = DataShowDialog(self, self.activate_active_players, "玩家", "活跃玩家")
+        dialog.ShowModal()
+
+    def update_data(self, *_):
+        ranges = self.data_manager.get_all_online_ranges().items()
+
+        total_players = set()
+        for pt in self.data_manager.points:
+            for player in pt.players:
+                total_players.add(player.name)
+        self.total_players.SetData(str(len(total_players)))
+
+        day_start = datetime.combine(datetime.now().date(), datetime.min.time()).timestamp()
+        day_end = datetime.combine(datetime.now().date(), datetime.max.time()).timestamp()
+        today_players = set()
+        total_online_time = 0
+        for player, times in ranges:
+            for start, end in times:
+                if start <= day_end and end >= day_start:
+                    today_players.add(player)
+                total_online_time += end - start
+        self.today_players.SetData(str(len(today_players)))
+        self.total_online_time.SetData(string_fmt_time(total_online_time))
+
+        active_players_day: dict[str, set[str]] = {}
+        seven_days_ago = datetime.now() - timedelta(days=7)
+        for player, times in ranges:
+            for start, end in times:
+                start = datetime.fromtimestamp(start)
+                end = datetime.fromtimestamp(end)
+                if player not in active_players_day:
+                    active_players_day[player] = set()
+                if end > seven_days_ago:
+                    active_players_day[player].add(end.strftime("%Y-%m-%d"))
+                elif start > seven_days_ago:
+                    active_players_day[player].add(start.strftime("%Y-%m-%d"))
+        new_active_players_day = {}
+        for player, days in active_players_day.items():
+            if len(days) >= 4:
+                new_active_players_day[player] = days
+        self.active_players.SetData(str(len(new_active_players_day)))
+
+        self.activate_total_players = list(total_players)
+        self.activate_today_players = list(today_players)
+        self.activate_active_players = list(new_active_players_day.keys())
+
+
 class OverviewPanel(wx.Panel):
     """预览面板, 相当于地基"""
 
@@ -184,6 +268,7 @@ class OverviewPanel(wx.Panel):
         self.reset_btn = wx.Button(self.time_label, label="重置")
         self.update_btn = wx.Button(self.time_label, label="更新")
         self.status_label = CenteredText(self, label="未知")
+        self.player_online_overview = PlayerOnlineOverviewPanel(self)
         self.card_list = PlayerCardList(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -193,6 +278,8 @@ class OverviewPanel(wx.Panel):
         self.time_label.SetSizer(btn_sizer)
         sizer.Add(self.time_label, 0, wx.EXPAND)
         sizer.Add(self.status_label, 0, wx.EXPAND)
+        sizer.AddSpacer(5)
+        sizer.Add(self.player_online_overview, 0, wx.EXPAND)
         sizer.AddSpacer(5)
         sizer.Add(self.card_list, 1, wx.EXPAND)
         self.SetSizer(sizer)
