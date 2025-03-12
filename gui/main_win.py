@@ -132,7 +132,7 @@ class GUI(wx.Frame):
         self.notebook.AddPage(self.overview_panel, "总览")
         self.notebook.AddPage(self.status_panel, "状态")
         self.notebook.AddPage(self.player_view_panel, "玩家")
-        self.notebook.AddPage(self.config_panel, "配置")
+        self.notebook.AddPage(self.config_panel, "设置")
         self.notebook.AddPage(self.about_panel, "关于")
         sizer.Add(name_title, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=5)
         sizer.Add(wx.StaticLine(self), flag=wx.EXPAND | wx.TOP | wx.BOTTOM, border=5)

@@ -310,7 +310,7 @@ class PlayerInfoPanel(wx.Panel):
             ("在线次数", 100),
             ("平均每次在线", 150),
             ("最长单次在线", 150),
-            ("最后在线时刻", 200),
+            ("最近在线", 200),
             ("进服时间", 200)
         ]
         for i, (name, width) in enumerate(column_map):
@@ -359,7 +359,7 @@ class PlayerInfoPanel(wx.Panel):
             text += f"在线次数: {get_data(first, 5)}\n"
             text += f"平均每次在线: {get_data(first, 6)}\n"
             text += f"最长单次在线: {get_data(first, 7)}\n"
-            text += f"最后在线时刻: {get_data(first, 8)}\n"
+            text += f"最近在线: {get_data(first, 8)}\n"
             text += f"进服时间: {get_data(first, 9)}"
             wx.TheClipboard.SetData(wx.TextDataObject(text))
 
