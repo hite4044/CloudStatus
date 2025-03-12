@@ -2,15 +2,12 @@
 预览面板
 提供 服务器预览 的GUI定义文件
 """
-from enum import Enum
 from threading import Thread
 from time import strftime, localtime, time
 
-import wx
-from PIL import Image
-
 from gui.events import GetStatusNowEvent
-from gui.widget import ft, CenteredText, CenteredBitmap, GradientBgBinder, load_player_head, EasyColor, PlayerOnlineWin
+from gui.online_widget import PlayerOnlineWin
+from gui.widget import *
 from lib.common_data import common_data
 from lib.data import ServerPoint
 from lib.log import logger
