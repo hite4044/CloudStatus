@@ -65,6 +65,7 @@ class StatusPanel(wx.SplitterWindow):
 
         self.SplitVertically(self.left_panel, self.cap_list, 0)
         self.SetSashGravity(0.65)
+        self.SetMinimumPaneSize(5)
         self.Bind(EVT_FILTER_CHANGE, self.on_filter_change)
 
     def on_filter_change(self, event: FilterChangeEvent):
