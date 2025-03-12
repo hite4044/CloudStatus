@@ -10,7 +10,7 @@ from hashlib import md5
 from os import listdir, remove, mkdir
 from os.path import join, basename
 from random import randbytes
-from threading import Lock, Thread
+from threading import Lock, Thread, current_thread
 
 from lib.config import *
 from lib.log import logger
@@ -136,18 +136,19 @@ class DataManager:
     def load_data(self):
         """从文件夹中查找并加载数据点"""
         logger.info(f"从 [{self.data_dir}] 加载数据...")
-        loading_threads = []
+        load_threads = []
         lock = Lock()
         for file in listdir(self.data_dir):
             self.data_files.append(file)  # 把启动时加载的文件名记录下来
             full_path = join(self.data_dir, file)
-            thread = Thread(target=self.load_a_file, args=(full_path, lock))
-            loading_threads.append(thread)
+            thread = Thread(name=f"Loader-{str(len(load_threads)).zfill(2)}", target=self.load_a_file,
+                            args=(full_path, lock))
+            load_threads.append(thread)
             thread.start()
-            if len(loading_threads) >= config.data_load_threads:
-                loading_threads[0].join()
-                loading_threads.pop(0)
-        for thread in loading_threads:
+            if len(load_threads) >= config.data_load_threads:
+                load_threads[0].join()
+                load_threads.pop(0)
+        for thread in load_threads:
             thread.join()
 
         sorted_points = sorted(self.points_map.values(), key=lambda pt: pt.time)
@@ -162,7 +163,7 @@ class DataManager:
         """
         with open(file_path, "r") as f:
             file_dic: list[dict] = json.load(f)
-        logger.info(f"已加载文件 [{basename(file_path)}]")
+        logger.info(f"[{current_thread().name}] 已加载文件 [{basename(file_path)}]")
         with lock:
             for point_dict in file_dic:
                 point = ServerPoint.from_dict(point_dict)
@@ -230,22 +231,22 @@ class DataManager:
             if i == 0:
                 active_start = point.time
             now_players = set(p.name for p in point.players)
-            for player in now_players-last_players:
+            for player in now_players - last_players:
                 if player == player_name:
                     active_start = point.time
-            for player in last_players-now_players:
+            for player in last_players - now_players:
                 if player == player_name:
                     result.append((active_start, point.time))
                     active_start = 0
             last_players = now_players
-            if i >= points_count-1 and active_start != 0:
+            if i >= points_count - 1 and active_start != 0:
                 result.append((active_start, point.time))
         return result
 
 
-
 class DataFilter:
     """一个简单的数据过滤器, 通过给定的开始时间和结束时间过滤数据"""
+
     def __init__(self, from_time: float = None, to_time: float = None):
         self.from_time = from_time
         self.to_time = to_time
