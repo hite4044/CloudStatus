@@ -2,8 +2,10 @@
 配置面板
 提供 GUI化配置编辑 的GUI定义文件
 """
+import os
 from copy import copy
 from dataclasses import dataclass
+from os import rmdir
 from typing import Any
 
 from winsound import Beep
@@ -164,7 +166,7 @@ class ConfigLine(wx.Panel):
         return self.fmt(self.widget.GetValue())
 
 
-class ConfigPanel(wx.Panel):
+class ConfigLinePanel(wx.Panel):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
         self.config_map: list[LineData] = [
@@ -174,7 +176,8 @@ class ConfigPanel(wx.Panel):
             LineData("点/保存", "saved_per_points", int, "获取多少个数据点后保存一次数据", (1, 20)),
             LineData("最小在线时间", "min_online_time", int,
                      "数据分析时使用的单次最小在线时间\n小于该时间忽略此次在线 (秒)", (0, 600)),
-            LineData("数据空隙修复间隔", "fix_sep", float, "数据点之间的空隙小于该值时 (秒), 通过增加假数据点自动修复", (100, 600)),
+            LineData("数据空隙修复间隔", "fix_sep", float, "数据点之间的空隙小于该值时 (秒), 通过增加假数据点自动修复",
+                     (100, 600)),
             LineData("数据文件夹", "data_dir", str, "存放路径点数据文件的文件夹"),
             LineData("数据加载线程数", "data_load_threads", int, "一般越大越快, 推荐 4-8", (1, 32)),
             LineData("启用保存数据功能", "enable_data_save", bool, "一般用于远程路径查看数据"),
@@ -188,4 +191,38 @@ class ConfigPanel(wx.Panel):
             line = ConfigLine(self, data, use_sizer=False, cbk=config.set_value)
             sizer.Add(line.label, proportion=0, flag=wx.EXPAND)
             sizer.Add(line.widget, proportion=1, flag=wx.EXPAND)
+        self.SetSizer(sizer)
+
+
+class CtlBtnPanel(wx.Panel):
+    def __init__(self, parent: wx.Window):
+        super().__init__(parent)
+        buttons: list[tuple[str, str, Callable[[Any], None]]] = [
+            ("删除头像缓存", "也可到heads_cache目录下删除", self.clear_head_cache),
+        ]
+        sizer = wx.FlexGridSizer(len(buttons), 3, 5, 5)
+        for label, tip, cbk in buttons:
+            btn = wx.Button(self, label=label)
+            btn.SetToolTip(wx.ToolTip(tip))
+            btn.Bind(wx.EVT_BUTTON, cbk)
+            sizer.Add(btn, proportion=1, flag=wx.EXPAND)
+        self.SetSizer(sizer)
+
+    @staticmethod
+    def clear_head_cache(_):
+        cache_dir = "heads_cache"
+        for file_name in os.listdir(cache_dir):
+            if file_name.endswith(".png"):
+                os.remove(os.path.join(cache_dir, file_name))
+        wx.MessageBox("清除成功", "提示", wx.OK | wx.ICON_INFORMATION)
+
+
+class ConfigPanel(wx.Panel):
+    def __init__(self, parent: wx.Window):
+        super().__init__(parent)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        self.config_line_panel = ConfigLinePanel(self)
+        self.ctl_btn_panel = CtlBtnPanel(self)
+        sizer.Add(self.config_line_panel, proportion=1, flag=wx.EXPAND)
+        sizer.Add(self.ctl_btn_panel, proportion=0, flag=wx.EXPAND)
         self.SetSizer(sizer)
