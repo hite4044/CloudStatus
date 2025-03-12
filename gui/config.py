@@ -7,8 +7,11 @@ from copy import copy
 from dataclasses import dataclass
 from typing import Any
 
+import wx
+
 from gui.events import ApplyValueEvent, EVT_APPLY_VALUE
 from gui.widget import *
+from lib.common_data import common_data
 from lib.config import config
 from lib.data import MAX_SIZE
 
@@ -196,8 +199,9 @@ class CtlBtnPanel(wx.Panel):
         super().__init__(parent)
         buttons: list[tuple[str, str, Callable[[Any], None]]] = [
             ("删除头像缓存", "也可到heads_cache目录下删除", self.clear_head_cache),
+            ("保存数据", "立即保存当前数据到文件", self.save_data_now),
         ]
-        sizer = wx.FlexGridSizer(len(buttons), 3, 5, 5)
+        sizer = wx.GridSizer(len(buttons), 3, 5, 5)
         for label, tip, cbk in buttons:
             btn = wx.Button(self, label=label)
             btn.SetToolTip(wx.ToolTip(tip))
@@ -212,6 +216,14 @@ class CtlBtnPanel(wx.Panel):
             if file_name.endswith(".png"):
                 os.remove(os.path.join(cache_dir, file_name))
         wx.MessageBox("清除成功", "提示", wx.OK | wx.ICON_INFORMATION)
+
+    @staticmethod
+    def save_data_now(_):
+        if config.enable_data_save:
+            common_data.data_manager.save_data()
+            wx.MessageBox("保存成功", "提示", wx.OK | wx.ICON_INFORMATION)
+        else:
+            wx.MessageBox("保存失败, 请先启用保存数据功能", "提示", wx.OK | wx.ICON_INFORMATION)
 
 
 class ConfigPanel(wx.Panel):
