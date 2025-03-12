@@ -9,7 +9,8 @@ from time import perf_counter, strftime, localtime
 import wx
 
 from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO, AddPlayerOverviewEvent
-from gui.widget import TimeSelector, PlayerOnlineWin, ft
+from gui.widget import TimeSelector, ft
+from gui.online_widget import PlayerOnlineWin
 from lib.common_data import common_data
 from lib.config import config
 from lib.data import Player
