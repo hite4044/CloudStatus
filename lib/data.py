@@ -14,6 +14,7 @@ from threading import Lock, Thread, current_thread
 
 from lib.config import *
 from lib.log import logger
+from lib.perf import Counter
 
 MAX_SIZE = (windll.user32.GetSystemMetrics(0), windll.user32.GetSystemMetrics(1))
 
@@ -138,6 +139,8 @@ class DataManager:
         logger.info(f"从 [{self.data_dir}] 加载数据...")
         load_threads = []
         lock = Lock()
+        timer = Counter()
+        timer.start()
         for file in listdir(self.data_dir):
             self.data_files.append(file)  # 把启动时加载的文件名记录下来
             full_path = join(self.data_dir, file)
@@ -153,7 +156,7 @@ class DataManager:
 
         sorted_points = sorted(self.points_map.values(), key=lambda pt: pt.time)
         self.points_map = {point.id_: point for point in sorted_points}
-        logger.info(f"加载完成，共 {len(self.points_map)} 个数据点")
+        logger.info(f"加载完成, 共 {len(self.points_map)} 个数据点, 耗时 {timer.endT()}")
 
     def load_a_file(self, file_path: str, lock: Lock):
         """
@@ -217,6 +220,43 @@ class DataManager:
                 # noinspection PyTypeChecker
                 json.dump(points, f)
                 logger.info(f"保存文件 [{hash_hex + '.json'}] ...")
+
+    def get_all_online_ranges(self) -> dict[str, list[tuple[float, float]]]:
+        """
+        获取所有玩家的在线时间段范围
+        :return: 一个字典，键为玩家名称，值为该玩家的所有在线时间段列表
+        """
+        player_active_times = {}  # 记录每个玩家的在线时间段
+        last_players = set()  # 上一个数据点中的玩家集合
+        last_point = None
+        points_len = len(self.points)
+        for i, point in enumerate(self.points):
+            now_players = set(p.name for p in point.players)  # 当前数据点中的玩家集合
+
+            # 处理新上线的玩家
+            for player in now_players - last_players:
+                if player not in player_active_times:
+                    player_active_times[player] = []
+                player_active_times[player].append([point.time, None])  # 记录上线时间
+
+            # 处理下线的玩家
+            for player in last_players - now_players:
+                if player in player_active_times and player_active_times[player][-1][1] is None:
+                    player_active_times[player][-1][1] = point.time  # 记录下线时间
+
+            last_players = now_players
+            if i == points_len - 1:
+                last_point = point
+
+        # 处理仍然在线的玩家
+        for player, times in player_active_times.items():
+            for i, time_range in enumerate(times):
+                if time_range[1] is None:  # 如果玩家仍然在线
+                    time_range[1] = last_point.time  # 使用最后一个数据点的时间作为下线时间
+                times[i] = (time_range[0], time_range[1])
+
+        # 转换为元组形式
+        return player_active_times
 
     def get_player_time_range(self, player_name: str) -> list[tuple[float, float]]:
         """
