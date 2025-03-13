@@ -7,12 +7,10 @@ from copy import copy
 from dataclasses import dataclass
 from typing import Any
 
-import wx
-
 from gui.events import ApplyValueEvent, EVT_APPLY_VALUE
 from gui.widget import *
 from lib.common_data import common_data
-from lib.config import config
+from lib.config import config, DataSaveFmt
 from lib.data import MAX_SIZE
 
 
@@ -23,6 +21,7 @@ class LineData:
     fmt: type[Any]
     tip: str | None = None
     range: tuple[int | float, int | float] | None = None
+    items_desc: dict[Enum, str] | None = None
 
 
 class EntrySlider(wx.Panel):
@@ -135,6 +134,10 @@ class ConfigLine(wx.Panel):
         elif self.fmt == bool:
             self.widget = wx.CheckBox(parent)
             self.widget.SetValue(self.value)
+        elif isinstance(self.fmt, type(Enum)):
+            self.widget = wx.Choice(parent, choices=[desc for _, desc in data.items_desc.items()])
+            assert isinstance(self.value, Enum)
+            self.widget.SetSelection(self.value.value)
         else:
             raise ValueError(f"Unsupported fmt: {self.fmt}")
         self.widget.SetMaxSize((MAX_SIZE[0], 28))
@@ -154,6 +157,8 @@ class ConfigLine(wx.Panel):
         elif self.fmt == str:
             self.widget.Bind(wx.EVT_KILL_FOCUS, self.apply_value)
             self.widget.Bind(wx.EVT_TEXT_ENTER, self.apply_value)
+        elif isinstance(self.fmt, type(Enum)):
+            self.widget.Bind(wx.EVT_CHOICE, self.apply_value)
         else:
             self.widget.Bind(EVT_APPLY_VALUE, self.apply_value)
 
@@ -163,7 +168,11 @@ class ConfigLine(wx.Panel):
             event.Skip()
 
     def get_value(self) -> Any:
-        return self.fmt(self.widget.GetValue())
+        if isinstance(self.widget, wx.Choice):
+            return self.fmt(self.widget.GetSelection())
+        else:
+            # noinspection PyUnresolvedReferences
+            return self.fmt(self.widget.GetValue())
 
 
 class ConfigLinePanel(wx.Panel):
@@ -184,6 +193,12 @@ class ConfigLinePanel(wx.Panel):
             LineData("服务器名", "server_name", str, "重启程序生效"),
             LineData("使用LittleSkin", "use_little_skin", bool,
                      "是否使用LittleSkin站加载皮肤, 否则使用正版皮肤\n注：需要清除头像缓存文件夹"),
+            LineData("数据文件格式", "data_save_fmt", DataSaveFmt,
+                     tip="使用新的数据格式, 可以安全地随意切换数据格式 (保存性能可能不一样)\n保存数据时使用新的格式, 或者手动保存",
+                     items_desc={
+                         DataSaveFmt.NORMAL: "普通格式 (原数据)",
+                         DataSaveFmt.PLAYER_MAPPING: "玩家映射格式 (更小)",
+                     })
         ]
         sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         self.SetFont(ft(11))

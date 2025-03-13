@@ -4,6 +4,7 @@
 定义数据存储类
 定义数据过滤类
 """
+from copy import copy
 from ctypes import windll
 from dataclasses import dataclass
 from hashlib import md5
@@ -63,6 +64,19 @@ def slice_dict(d: dict, start: int, end: int) -> dict:
     return {k: d[k] for k in sliced_keys}
 
 
+def get_players_hash(players: list[dict[str, str]]) -> int:
+    """
+    计算玩家列表的哈希值
+    :param players: 玩家列表
+    :return: 哈希值
+    """
+    players_hash = md5()
+    for player in players:
+        players_hash.update(player["name"].encode())
+        players_hash.update(player["uuid"].encode())
+    return int.from_bytes(players_hash.digest(), "big")
+
+
 class ServerPoint:
     """数据点类"""
 
@@ -103,6 +117,7 @@ class DataManager:
         if not exists(self.data_dir):
             logger.info(f"创建目录 [{self.data_dir}]...")
             mkdir(self.data_dir)
+        self.last_fmt: DataSaveFmt | None = None
 
     @property
     def points(self):
@@ -161,16 +176,26 @@ class DataManager:
     def load_a_file(self, file_path: str, lock: Lock):
         """
         从给定的文件路径加载数据点
+        旧格式: list[dict[]], 新格式: dict[str, Any]
         :param file_path: 文件路径
         :param lock: 字典操作的锁
         """
         with open(file_path, "r") as f:
-            file_dic: list[dict] = json.load(f)
+            data_obj: list[dict] = json.load(f)
         logger.info(f"[{current_thread().name}] 已加载文件 [{basename(file_path)}]")
         with lock:
-            for point_dict in file_dic:
-                point = ServerPoint.from_dict(point_dict)
-                self.points_map[point.id_] = point
+            if isinstance(data_obj, list):
+                for point_dict in data_obj:
+                    point = ServerPoint.from_dict(point_dict)
+                    self.points_map[point.id_] = point
+            elif isinstance(data_obj, dict) and data_obj["fmt"] == DataSaveFmt.PLAYER_MAPPING.value:
+                players_mapping: dict[int, list[dict[str, str]]] = data_obj["players_mapping"]
+                for point_dict in data_obj["points"]:
+                    players_id = get_players_hash(point_dict["players"])
+                    if players_id in players_mapping:
+                        point_dict["players"] = players_mapping[players_id]
+                    point = ServerPoint.from_dict(point_dict)
+                    self.points_map[point.id_] = point
 
     def save_data(self):
         """
@@ -180,20 +205,25 @@ class DataManager:
         if not config.enable_data_save:
             logger.info("数据保存已禁用，跳过保存")
             return
-        logger.info(f"保存数据到 [{self.data_dir}]...")
+        data_save_fmt: DataSaveFmt = copy(config.data_save_fmt)
+        logger.info(f"保存数据到 [{self.data_dir}]... 格式: {data_save_fmt.name}")
         self.data_files.clear()
         ready_points: list[dict] = []
         points_counter = 0
+        rewrite_data = False
+        if self.last_fmt != data_save_fmt:
+            self.last_fmt = data_save_fmt
+            rewrite_data = True
 
         for point in self.points_map.values():
             ready_points.append(point.to_dict())
             points_counter += 1
             if points_counter >= config.points_per_file:
-                self.dump_points(ready_points)
+                self.dump_points(ready_points, data_save_fmt, rewrite_data)
                 ready_points = []
                 points_counter = 0
         if ready_points:
-            self.dump_points(ready_points)
+            self.dump_points(ready_points, data_save_fmt)
 
         failure_files = listdir(self.data_dir)
         for file in self.data_files:
@@ -203,10 +233,12 @@ class DataManager:
             logger.info(f"移除失效文件 [{file}]...")
             remove(join(self.data_dir, file))
 
-    def dump_points(self, points: list[dict]):
+    def dump_points(self, points: list[dict], fmt: DataSaveFmt, rewrite_data: bool = False):
         """
         存储给定的数据点字典到文件, 把所有数据点的时间作哈希作为文件名
         :param points: 数据点字典列表
+        :param fmt: 数据存储格式
+        :param rewrite_data: 是否覆盖已存在的文件
         """
         points_hash = md5(usedforsecurity=False)
         for ready_point in points:
@@ -214,12 +246,29 @@ class DataManager:
         hash_hex = points_hash.hexdigest()
         save_path = join(self.data_dir, hash_hex + ".json")
 
+        if not exists(save_path) or rewrite_data:
+            if fmt == DataSaveFmt.NORMAL:
+                with open(save_path, "w") as f:
+                    # noinspection PyTypeChecker
+                    json.dump(points, f)
+            elif fmt == DataSaveFmt.PLAYER_MAPPING:
+                player_mapping: dict[int, list[dict[str, str]]] = {}
+                for i, pt in enumerate(points):
+                    players: list[dict[str, str]] = copy(pt["players"])
+                    players_id = get_players_hash(players)
+                    if players_id not in player_mapping:
+                        player_mapping[players_id] = players
+                    pt["players"] = players_id
+                final_content = {
+                    "fmt": fmt.value,
+                    "points": points,
+                    "players_mapping": player_mapping,
+                }
+                with open(save_path, "w") as f:
+                    # noinspection PyTypeChecker
+                    json.dump(final_content, f)
+            logger.info(f"保存文件 [{hash_hex + '.json'}]")
         self.data_files.append(hash_hex + ".json")
-        if not exists(save_path):
-            with open(save_path, "w") as f:
-                # noinspection PyTypeChecker
-                json.dump(points, f)
-                logger.info(f"保存文件 [{hash_hex + '.json'}] ...")
 
     def get_all_online_ranges(self) -> dict[str, list[tuple[float, float]]]:
         """
