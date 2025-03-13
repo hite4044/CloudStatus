@@ -20,6 +20,7 @@ MIN_HAP = 6
 class ServerStatus(Enum):
     ONLINE = 0
     OFFLINE = 1
+    UNKNOWN = 2
 
 
 class NameLabel(CenteredText):
@@ -292,8 +293,9 @@ class OverviewPanel(wx.Panel):
                          ServerStatus.ONLINE)
 
     def on_reset(self, _):
-        point: ServerPoint = list(self.data_manager.points)[-1]
-        self.update_data([p.name for p in point.players], point.time, ServerStatus.ONLINE)
+        if len(self.data_manager.points) > 0:
+            point: ServerPoint = list(self.data_manager.points)[-1]
+            self.update_data([p.name for p in point.players], point.time, ServerStatus.ONLINE)
 
     def on_update(self, _):
         event = GetStatusNowEvent()
@@ -310,6 +312,10 @@ class OverviewPanel(wx.Panel):
             self.status_label.SetLabel("在线")
             self.status_label.SetBackgroundColour(wx.Colour(128, 255, 128))
             self.card_list.update_players(players)
+        elif status == ServerStatus.UNKNOWN:
+            self.status_label.SetLabel("未知")
+            self.status_label.SetBackgroundColour(wx.Colour(128, 128, 128))
+            self.card_list.update_players([])
         else:
             self.status_label.SetLabel("离线")
             self.status_label.SetBackgroundColour(wx.Colour(128, 128, 128))

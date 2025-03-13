@@ -115,7 +115,10 @@ class GUI(wx.Frame):
 
         self.status_panel.cap_list.points_init(points)
         self.status_panel.plot.points_init(points)
-        self.overview_panel.update_data([p.name for p in points[-1].players], points[-1].time, ServerStatus.ONLINE)
+        if points:
+            self.overview_panel.update_data([p.name for p in points[-1].players], points[-1].time, ServerStatus.ONLINE)
+        else:
+            self.overview_panel.update_data([], time(), ServerStatus.UNKNOWN)
         logger.info(f"GUI数据加载完成! (耗时: {timer.endT()})")
 
     # noinspection PyAttributeOutsideInit
