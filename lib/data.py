@@ -117,7 +117,7 @@ class DataManager:
         if not exists(self.data_dir):
             logger.info(f"创建目录 [{self.data_dir}]...")
             mkdir(self.data_dir)
-        self.last_fmt: DataSaveFmt | None = None
+        self.last_fmt: DataSaveFmt = config.data_save_fmt
 
     @property
     def points(self):
