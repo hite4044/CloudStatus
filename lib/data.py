@@ -220,10 +220,10 @@ class DataManager:
             rewrite_data = True
         points_length = len(self.points_map)
 
-        for point in self.points_map.values():
+        for index, point in enumerate(self.points_map.values()):
             ready_points.append(point.to_dict())
             points_counter += 1
-            if points_counter >= config.points_per_file or points_counter >= points_length:
+            if points_counter >= config.points_per_file or index == points_length - 1:
                 try:
                     self.dump_points(ready_points, data_save_fmt, rewrite_data)
                 except OSError as e:
