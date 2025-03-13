@@ -40,9 +40,7 @@ class Configer:
 
     def load(self):
         """加载配置文件"""
-        if not exists("./config.json"):
-            self.save()
-        else:
+        if exists("./config.json"):
             logger.info("读取配置文件...")
             with open("./config.json", "r", encoding="utf-8") as f:
                 cfg_dict: dict = json.load(f)
@@ -53,17 +51,27 @@ class Configer:
                     self.config_vars[key] = value
                     setattr(self, key, value)
 
-    def save(self):
-        """保存配置文件"""
+    def save(self) -> None | str:
+        """保存配置文件, 成功保存返回None, 出错返回错误信息"""
         logger.info("保存配置文件...")
-        config_vars_org = {}
+        config_vars_cov = {}
         for key, value in self.config_vars.items():
             if isinstance(value, Enum):
-                config_vars_org[key] = value.value
+                config_vars_cov[key] = value.value
             else:
-                config_vars_org[key] = value
-        with open("./config.json", "w") as f:
-            f.write(json.dumps(self.config_vars, indent=4))
+                config_vars_cov[key] = value
+        try:
+            content = json.dumps(config_vars_cov, indent=2)
+        except TypeError as e:
+            logger.error(f"保存配置时出错: 无法转换此数据类型至json -> {e}")
+            return f"无法转换数据类型至json -> {e}"
+        try:
+            with open("./config.json", "w") as f:
+                f.write(content)
+        except OSError as e:
+            logger.error(f"保存配置时出错: 无法打开文件 -> {e}")
+            return f"无法打开文件 -> {e}"
+        return None
 
     def set_value(self, key: str, value: Any):
         """设置配置项的值"""

@@ -9,7 +9,7 @@ from ctypes import windll
 from dataclasses import dataclass
 from hashlib import md5
 from os import listdir, remove, mkdir
-from os.path import join, basename
+from os.path import join, basename, isfile
 from random import randbytes
 from threading import Lock, Thread, current_thread
 
@@ -64,7 +64,7 @@ def slice_dict(d: dict, start: int, end: int) -> dict:
     return {k: d[k] for k in sliced_keys}
 
 
-def get_players_hash(players: list[dict[str, str]]) -> int:
+def get_players_hash(players: list[dict[str, str]]) -> str:
     """
     计算玩家列表的哈希值
     :param players: 玩家列表
@@ -74,7 +74,7 @@ def get_players_hash(players: list[dict[str, str]]) -> int:
     for player in players:
         players_hash.update(player["name"].encode())
         players_hash.update(player["uuid"].encode())
-    return int.from_bytes(players_hash.digest(), "big")
+    return players_hash.hexdigest()
 
 
 class ServerPoint:
@@ -180,31 +180,35 @@ class DataManager:
         :param file_path: 文件路径
         :param lock: 字典操作的锁
         """
+        thr_name = current_thread().name
         with open(file_path, "r") as f:
             data_obj: list[dict] = json.load(f)
-        logger.info(f"[{current_thread().name}] 已加载文件 [{basename(file_path)}]")
+        logger.info(f"[{thr_name}] 已加载文件 [{basename(file_path)}]")
         with lock:
             if isinstance(data_obj, list):
                 for point_dict in data_obj:
                     point = ServerPoint.from_dict(point_dict)
                     self.points_map[point.id_] = point
             elif isinstance(data_obj, dict) and data_obj["fmt"] == DataSaveFmt.PLAYER_MAPPING.value:
-                players_mapping: dict[int, list[dict[str, str]]] = data_obj["players_mapping"]
+                players_mapping: dict[str, list[dict[str, str]]] = data_obj["players_mapping"]
                 for point_dict in data_obj["points"]:
-                    players_id = get_players_hash(point_dict["players"])
+                    players_id: str = point_dict["players"]
                     if players_id in players_mapping:
                         point_dict["players"] = players_mapping[players_id]
+                    else:
+                        point_dict["players"] = []
+                        logger.warning(f"[{thr_name}] 玩家映射文件 [{basename(file_path)}] 中找不到玩家映射 {players_id}")
                     point = ServerPoint.from_dict(point_dict)
                     self.points_map[point.id_] = point
 
-    def save_data(self):
+    def save_data(self) -> None | str:
         """
         保存数据到预设好的文件夹中
         tip: 会比对文件哈希值并删除失效的数据文件
         """
         if not config.enable_data_save:
             logger.info("数据保存已禁用，跳过保存")
-            return
+            return None
         data_save_fmt: DataSaveFmt = copy(config.data_save_fmt)
         logger.info(f"保存数据到 [{self.data_dir}]... 格式: {data_save_fmt.name}")
         self.data_files.clear()
@@ -214,24 +218,35 @@ class DataManager:
         if self.last_fmt != data_save_fmt:
             self.last_fmt = data_save_fmt
             rewrite_data = True
+        points_length = len(self.points_map)
 
         for point in self.points_map.values():
             ready_points.append(point.to_dict())
             points_counter += 1
-            if points_counter >= config.points_per_file:
-                self.dump_points(ready_points, data_save_fmt, rewrite_data)
+            if points_counter >= config.points_per_file or points_counter >= points_length:
+                try:
+                    self.dump_points(ready_points, data_save_fmt, rewrite_data)
+                except OSError as e:
+                    logger.error(f"保存数据时发生错误, 终止保存 -> {e}")
+                    return f"保存数据时发生错误, 终止保存 -> {e}"
                 ready_points = []
                 points_counter = 0
-        if ready_points:
-            self.dump_points(ready_points, data_save_fmt)
 
         failure_files = listdir(self.data_dir)
         for file in self.data_files:
             if file in failure_files:
                 failure_files.remove(file)
         for file in failure_files:
-            logger.info(f"移除失效文件 [{file}]...")
-            remove(join(self.data_dir, file))
+            full_path = join(self.data_dir, file)
+            try:
+                if exists(full_path) and isfile(full_path):
+                    remove(full_path)
+                    logger.info(f"移除失效文件 [{file}]...")
+                else:
+                    logger.warning(f"文件 [{file}] 不存在, 跳过删除")
+            except OSError as e:
+                logger.error(f"移除失效文件时发生系统错误, 终止保存 -> {e}")
+                return f"移除失效文件时发生错误, 终止保存 -> {e}"
 
     def dump_points(self, points: list[dict], fmt: DataSaveFmt, rewrite_data: bool = False):
         """
@@ -252,10 +267,10 @@ class DataManager:
                     # noinspection PyTypeChecker
                     json.dump(points, f)
             elif fmt == DataSaveFmt.PLAYER_MAPPING:
-                player_mapping: dict[int, list[dict[str, str]]] = {}
+                player_mapping: dict[str, list[dict[str, str]]] = {}
                 for i, pt in enumerate(points):
                     players: list[dict[str, str]] = copy(pt["players"])
-                    players_id = get_players_hash(players)
+                    players_id: str = get_players_hash(players)
                     if players_id not in player_mapping:
                         player_mapping[players_id] = players
                     pt["players"] = players_id

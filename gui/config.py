@@ -235,8 +235,11 @@ class CtlBtnPanel(wx.Panel):
     @staticmethod
     def save_data_now(_):
         if config.enable_data_save:
-            common_data.data_manager.save_data()
-            wx.MessageBox("保存成功", "提示", wx.OK | wx.ICON_INFORMATION)
+            msg = common_data.data_manager.save_data()
+            if msg:
+                wx.MessageBox(msg, "保存错误", wx.OK | wx.ICON_ERROR)
+            else:
+                wx.MessageBox("保存成功", "提示", wx.OK | wx.ICON_INFORMATION)
         else:
             wx.MessageBox("保存失败, 请先启用保存数据功能", "提示", wx.OK | wx.ICON_INFORMATION)
 
