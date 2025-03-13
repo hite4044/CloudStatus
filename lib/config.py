@@ -63,7 +63,7 @@ class Configer:
             else:
                 config_vars_org[key] = value
         with open("./config.json", "w") as f:
-            f.write(json.dumps(self.config_vars, indent=4))
+            f.write(json.dumps(config_vars_org, indent=4))
 
     def set_value(self, key: str, value: Any):
         """设置配置项的值"""
