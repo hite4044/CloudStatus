@@ -17,10 +17,25 @@ csEVT_PAUSE_STATUS = wx.NewEventType()
 EVT_PAUSE_STATUS = wx.PyEventBinder(csEVT_PAUSE_STATUS)
 csEVT_SET_AS_OVERVIEW = wx.NewEventType()
 EVT_SET_AS_OVERVIEW = wx.PyEventBinder(csEVT_SET_AS_OVERVIEW)
-csEVT_ADD_PLAYER_OVERVIEW = wx.NewEventType()
-EVT_ADD_PLAYER_OVERVIEW = wx.PyEventBinder(csEVT_ADD_PLAYER_OVERVIEW)
+csEVT_ADD_PLAYERS_OVERVIEW = wx.NewEventType()
+EVT_ADD_PLAYERS_OVERVIEW = wx.PyEventBinder(csEVT_ADD_PLAYERS_OVERVIEW)
 csEVT_APPLY_VALUE = wx.NewEventType()
 EVT_APPLY_VALUE = wx.PyEventBinder(csEVT_APPLY_VALUE)
+csEVT_ASK_TO_ADD_PLAYER = wx.NewEventType()
+EVT_ASK_TO_ADD_PLAYER = wx.PyEventBinder(csEVT_ASK_TO_ADD_PLAYER)
+csREMOVE_PLAYER_OVERVIEW = wx.NewEventType()
+EVT_REMOVE_PLAYER_OVERVIEW = wx.PyEventBinder(csREMOVE_PLAYER_OVERVIEW)
+
+
+class RemovePlayerOverviewEvent(wx.PyCommandEvent):
+    def __init__(self, player: str):
+        wx.PyCommandEvent.__init__(self, csREMOVE_PLAYER_OVERVIEW, wx.ID_ANY)
+        self.player = player
+
+
+class AskToAddPlayerEvent(wx.PyCommandEvent):
+    def __init__(self):
+        wx.PyCommandEvent.__init__(self, csEVT_ASK_TO_ADD_PLAYER, wx.ID_ANY)
 
 
 class FilterChangeEvent(wx.PyCommandEvent):
@@ -52,10 +67,10 @@ class SetAsOverviewEvent(wx.PyCommandEvent):
         self.point = point
 
 
-class AddPlayerOverviewEvent(wx.PyCommandEvent):
-    def __init__(self, player: str):
-        wx.PyCommandEvent.__init__(self, csEVT_ADD_PLAYER_OVERVIEW, wx.ID_ANY)
-        self.player = player
+class AddPlayersOverviewEvent(wx.PyCommandEvent):
+    def __init__(self, players: list[str]):
+        wx.PyCommandEvent.__init__(self, csEVT_ADD_PLAYERS_OVERVIEW, wx.ID_ANY)
+        self.players = players
 
 
 class ApplyValueEvent(wx.PyCommandEvent):

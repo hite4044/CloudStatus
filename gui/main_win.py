@@ -9,7 +9,7 @@ from mcstatus.status_response import JavaStatusResponse
 from gui.about import AboutPanel
 from gui.config import ConfigPanel
 from gui.events import EVT_GET_STATUS_NOW, EVT_PAUSE_STATUS, EVT_SET_AS_OVERVIEW, SetAsOverviewEvent, \
-    EVT_ADD_PLAYER_OVERVIEW, AddPlayerOverviewEvent
+    EVT_ADD_PLAYERS_OVERVIEW, AddPlayersOverviewEvent
 from gui.overview import OverviewPanel, ServerStatus
 from gui.players_info import PlayerPanel
 from gui.status_plot import StatusPanel
@@ -146,15 +146,15 @@ class GUI(wx.Frame):
         self.Bind(EVT_GET_STATUS_NOW, self.on_req_get_status)
         self.Bind(EVT_PAUSE_STATUS, self.on_pause_status)
         self.Bind(EVT_SET_AS_OVERVIEW, self.on_set_as_overview)
-        self.Bind(EVT_ADD_PLAYER_OVERVIEW, self.on_add_player_overview)
+        self.Bind(EVT_ADD_PLAYERS_OVERVIEW, self.on_add_player_overview)
         self.notebook.SetMinSize(MAX_SIZE)
         self.SetBackgroundColour(self.status_panel.GetBackgroundColour())
         self.load_icon()
         self.Center()
 
-    def on_add_player_overview(self, event: AddPlayerOverviewEvent):
+    def on_add_player_overview(self, event: AddPlayersOverviewEvent):
         self.notebook.SetSelection(0)
-        self.overview_panel.add_player(event.player)
+        self.overview_panel.add_players(event.players)
 
     def on_set_as_overview(self, event: SetAsOverviewEvent):
         point = event.point

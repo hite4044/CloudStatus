@@ -8,7 +8,7 @@ from time import perf_counter, strftime, localtime
 
 import wx
 
-from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO, AddPlayerOverviewEvent
+from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO, AddPlayersOverviewEvent
 from gui.widget import TimeSelector, ft
 from gui.online_widget import PlayerOnlineWin
 from lib.common_data import common_data
@@ -372,14 +372,13 @@ class PlayerInfoPanel(wx.Panel):
             menu.Append(3, f"添加[{get_data(first, 1)}]至预览")
         else:
             menu.Append(3, f"添加[{len(selections)}]个玩家至预览")
-        menu.Bind(wx.EVT_MENU, lambda _: self.add_player_to_preview(selections), id=3)
+        menu.Bind(wx.EVT_MENU, lambda _: self.add_players_to_preview(selections), id=3)
         self.PopupMenu(menu)
 
-    def add_player_to_preview(self, selections: list[int]):
-        for player in [self.player_info_lc.GetItemText(i, 1) for i in selections]:
-            event = AddPlayerOverviewEvent(player)
-            event.SetEventObject(self)
-            self.ProcessEvent(event)
+    def add_players_to_preview(self, selections: list[int]):
+        event = AddPlayersOverviewEvent([self.player_info_lc.GetItemText(i, 1) for i in selections])
+        event.SetEventObject(self)
+        self.ProcessEvent(event)
 
     def open_hour_online_win(self, player: str):
         PlayerOnlineWin(self, player).Show()

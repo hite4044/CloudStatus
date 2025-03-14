@@ -5,7 +5,8 @@
 from threading import Thread
 from time import strftime, localtime, time
 
-from gui.events import GetStatusNowEvent
+from gui.events import GetStatusNowEvent, AskToAddPlayerEvent, EVT_ASK_TO_ADD_PLAYER, RemovePlayerOverviewEvent, \
+    EVT_REMOVE_PLAYER_OVERVIEW
 from gui.online_widget import PlayerOnlineWin
 from gui.players_info import string_fmt_time
 from gui.widget import *
@@ -78,10 +79,18 @@ class PlayerCard(wx.Panel):
 
     def on_menu_click(self, _):
         menu = wx.Menu()
+        menu.Append(wx.ID_ADD, "添加玩家")
+        menu.AppendSeparator()
+        menu.Append(wx.ID_INFO, "打开玩家信息")
         menu.Append(wx.ID_COPY, "复制名字")
         menu.Append(wx.ID_REFRESH, "刷新头像")
+        menu.AppendSeparator()
+        menu.Append(wx.ID_DELETE, "删除玩家")
+        menu.Bind(wx.EVT_MENU, lambda _: self.ProcessEvent(AskToAddPlayerEvent()), id=wx.ID_ADD)
+        menu.Bind(wx.EVT_MENU, lambda _: PlayerOnlineWin(self, self.player).Show(), id=wx.ID_INFO)
         menu.Bind(wx.EVT_MENU, lambda _: wx.TheClipboard.SetData(wx.TextDataObject(self.player)), id=wx.ID_COPY)
         menu.Bind(wx.EVT_MENU, self.refresh_head, id=wx.ID_REFRESH)
+        menu.Bind(wx.EVT_MENU, lambda _: self.ProcessEvent(RemovePlayerOverviewEvent(self.player)), id=wx.ID_DELETE)
         self.PopupMenu(menu)
         menu.Destroy()
 
@@ -122,6 +131,9 @@ class PlayerCardList(wx.ScrolledWindow):
         self.sizer = wx.FlexGridSizer(rows=0, cols=10, vgap=16, hgap=20)
         self.SetSizer(self.sizer)
         self.Bind(wx.EVT_SIZE, self.on_size)
+        self.Bind(wx.EVT_RIGHT_DOWN, self.on_menu)
+        self.Bind(EVT_ASK_TO_ADD_PLAYER, self.on_add_player)
+        self.Bind(EVT_REMOVE_PLAYER_OVERVIEW, self.on_remove_player)
         self.SetVirtualSize(1316, 630)
         self.SetScrollRate(0, 20)
 
@@ -130,6 +142,29 @@ class PlayerCardList(wx.ScrolledWindow):
         card: PlayerCard = event.GetEventObject().GetParent()
         if card.player in self.cards:
             PlayerOnlineWin(self, card.player).Show()
+
+    def on_remove_player(self, event: RemovePlayerOverviewEvent):
+        self.sizer.Detach(self.cards[event.player])
+        card = self.cards.pop(event.player)
+        card.Destroy()
+
+    def on_clear_all_cards(self, _):
+        ret = wx.MessageBox("你真的想要清空列表吗?", "警告", wx.YES_NO | wx.ICON_WARNING, self)
+        if ret != wx.YES:
+            return
+        for card in self.cards.values():
+            self.sizer.Detach(card)
+            card.Destroy()
+        self.cards.clear()
+
+    def on_menu(self, _):
+        menu = wx.Menu()
+        menu.Append(wx.ID_ADD, "添加玩家")
+        menu.Append(wx.ID_CLEAR, "清空列表")
+        menu.Bind(wx.EVT_MENU, self.on_add_player, id=wx.ID_ADD)
+        menu.Bind(wx.EVT_MENU, self.on_clear_all_cards, id=wx.ID_CLEAR)
+        self.PopupMenu(menu)
+        menu.Destroy()
 
     def update_players(self, players: list[str]) -> None:
         """更新其中的玩家"""
@@ -143,8 +178,15 @@ class PlayerCardList(wx.ScrolledWindow):
             self.cards[player] = card
             self.sizer.Add(card, flag=wx.EXPAND)
         self.on_size(None)
-        self.Layout()
         self.Refresh()
+
+    def on_add_player(self, event: AskToAddPlayerEvent):
+        event.Skip()
+        player_dialog = wx.TextEntryDialog(self, "玩家名称: ", "添加玩家")
+        if player_dialog.ShowModal() == wx.ID_OK:
+            player = player_dialog.GetValue()
+            if player not in self.cards:
+                self.add_players([player])
 
     def on_size(self, _):
         width = self.GetSize()[0]
@@ -165,15 +207,14 @@ class PlayerCardList(wx.ScrolledWindow):
             self.sizer.Layout()
             self.old_cols = now_cols
 
-    def add_player(self, player: str):
-        if player not in self.cards:
-            card = PlayerCard(self, player)
-            card.head.Bind(wx.EVT_LEFT_DCLICK, self.on_card_open)
-            self.cards[player] = card
-            self.sizer.Add(card, flag=wx.EXPAND)
-            self.Layout()
-            self.Refresh()
-            self.on_size(None)
+    def add_players(self, players: list[str]):
+        for player in players:
+            if player not in self.cards:
+                card = PlayerCard(self, player)
+                card.head.Bind(wx.EVT_LEFT_DCLICK, self.on_card_open)
+                self.cards[player] = card
+                self.sizer.Add(card, flag=wx.EXPAND)
+        self.on_size(None)
 
 
 class PlayerOnlineOverviewPanel(wx.Panel):
@@ -302,8 +343,8 @@ class OverviewPanel(wx.Panel):
         event.SetEventObject(self)
         self.ProcessEvent(event)
 
-    def add_player(self, player: str):
-        self.card_list.add_player(player)
+    def add_players(self, players: list[str]):
+        self.card_list.add_players(players)
 
     def update_data(self, players: list[str], timestamp: float, status: ServerStatus) -> None:
         self.Freeze()
