@@ -330,7 +330,7 @@ class DataManager:
         # 转换为元组形式
         return player_active_times
 
-    def get_player_time_range(self, player_name: str) -> list[tuple[float, float]]:
+    def get_player_online_ranges(self, player_name: str) -> list[tuple[float, float]]:
         """
         获取某个玩家所有在线时间段的列表
         :param player_name: 玩家名称
