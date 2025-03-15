@@ -9,7 +9,7 @@ from time import perf_counter, strftime, localtime
 import wx
 
 from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO, AddPlayersOverviewEvent
-from gui.widget import TimeSelector, ft
+from gui.widget import TimeSelector, ft, string_fmt_time
 from gui.online_widget import PlayerOnlineWin
 from lib.common_data import common_data
 from lib.config import config
@@ -42,26 +42,6 @@ class PlayerOnlineInfo:
         self.avg_online_per_session: float = 0
         self.max_online_per_session: float = 0
         self.online_times: list[tuple[float, float]] = []
-
-
-def string_fmt_time(seconds: float) -> str:
-    """格式化时间戳至字符串"""
-    time_str = ""
-    time_tuple = tuple_fmt_time(seconds)
-    if time_tuple[0] > 0:
-        time_str += f"{time_tuple[0]}d "
-    if time_tuple[1] > 0:
-        time_str += f"{time_tuple[1]}h "
-    if time_tuple[2] > 0:
-        time_str += f"{time_tuple[2]}m "
-    if time_tuple[3] > 0:
-        time_str += f"{time_tuple[3]}s"
-    return time_str
-
-
-def tuple_fmt_time(seconds: float) -> tuple[int, int, int, int]:
-    """转化时间戳至时间元组"""
-    return int(seconds // 3600 // 24), int(seconds // 3600 % 24), int(seconds % 3600 // 60), int(seconds % 60)
 
 
 def sort_players_info(players_info: dict[str, PlayerOnlineInfo], column: int, ascending: bool) -> dict[

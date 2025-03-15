@@ -8,7 +8,6 @@ from time import strftime, localtime, time
 from gui.events import GetStatusNowEvent, AskToAddPlayerEvent, EVT_ASK_TO_ADD_PLAYER, RemovePlayerOverviewEvent, \
     EVT_REMOVE_PLAYER_OVERVIEW
 from gui.online_widget import PlayerOnlineWin
-from gui.players_info import string_fmt_time
 from gui.widget import *
 from lib.common_data import common_data
 from lib.data import ServerPoint
