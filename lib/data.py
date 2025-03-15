@@ -161,11 +161,19 @@ class DataManager:
             full_path = join(self.data_dir, file)
             thread = Thread(name=f"Loader-{str(len(load_threads)).zfill(2)}", target=self.load_a_file,
                             args=(full_path, lock))
-            load_threads.append(thread)
             thread.start()
+            load_threads.append(thread)
             if len(load_threads) >= config.data_load_threads:
-                load_threads[0].join()
-                load_threads.pop(0)
+                removed_threads = []
+                for thread in load_threads:
+                    if not thread.is_alive():
+                        removed_threads.append(thread)
+                for thread in removed_threads:
+                    load_threads.remove(thread)
+                del removed_threads
+                if len(load_threads) >= config.data_load_threads:
+                    load_threads[0].join()
+                    load_threads.pop(0)
         for thread in load_threads:
             thread.join()
 
