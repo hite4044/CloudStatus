@@ -538,6 +538,8 @@ class PlayerInfoPanel(wx.Panel):
     def on_column_click(self, event):
         """列头点击事件处理函数"""
         column = event.GetColumn()
+        if column == 0:
+            return
         if self.sort_column == column:
             self.sort_ascending = not self.sort_ascending
         else:
