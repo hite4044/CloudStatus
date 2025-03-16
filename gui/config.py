@@ -69,6 +69,8 @@ class EntrySlider(wx.Panel):
 
     def on_text_finalize(self, event: wx.Event):
         event.Skip()
+        if event.GetClassName() != "wxCommandEvent":
+            event.Skip()
         try:
             self.value = self.fmt(self.entry.GetValue())
             self.slider.SetValue(int(self.value))
