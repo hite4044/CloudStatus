@@ -185,6 +185,35 @@ def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, i
     return bitmap.ConvertToBitmap()
 
 
+class NoTabNotebook(wx.Panel):
+    def __init__(self, parent: wx.Window):
+        super().__init__(parent, style = wx.TRANSPARENT_WINDOW)
+        self.panels: list[wx.Window] = []
+        self.now_window: wx.Window | None = None
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(self.sizer)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
+
+    def add_page(self, window: wx.Window):
+        self.panels.append(window)
+        window.Hide()
+        if not self.now_window:
+            self.now_window = window
+            self.sizer.Add(window, 1, wx.EXPAND)
+            self.Layout()
+
+    def switch_page(self, index: int):
+        if self.now_window:
+            self.now_window.Hide()
+        self.now_window = self.panels[index]
+        self.panels[index].Show()
+        self.sizer.Clear()
+        self.sizer.Add(self.panels[index], 1, wx.EXPAND)
+        self.Layout()
+        self.Refresh()
+        self.now_window.Refresh()
+
+
 class CenteredText(wx.StaticText):
     """使得绘制的文字始终保持在控件中央"""
 
@@ -417,9 +446,10 @@ class LabeledData(wx.Panel):
     def SetData(self, data: str):
         self.data_t.SetLabel(data)
 
+
 class DataShowDialog(wx.Dialog):
     def __init__(self, parent: wx.Window, data: list[str], header: str = "数据", title: str = "数据"):
-        super().__init__(parent, style = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER, size=(380, 400))
+        super().__init__(parent, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER, size=(380, 400))
         self.SetFont(ft(11))
         self.SetTitle(title)
         self.data_lc = wx.ListCtrl(self, style=wx.LC_REPORT)
