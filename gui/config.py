@@ -71,7 +71,7 @@ class EntrySlider(wx.Panel):
         event.Skip()
         try:
             self.value = self.fmt(self.entry.GetValue())
-            self.slider.SetValue(self.value)
+            self.slider.SetValue(int(self.value))
             self.entry.SetValue(str(self.value))
             self.update_value()
         except ValueError as e:
