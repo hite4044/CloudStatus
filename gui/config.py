@@ -28,18 +28,20 @@ class EntrySlider(wx.Panel):
     def __init__(self,
                  parent: wx.Window,
                  value: int | float,
-                 area: tuple[int, int] = None,
+                 area: tuple[float, float] = None,
                  step: int = 1,
                  ):
         super().__init__(parent)
-        self.area = copy(area)
-        self.fmt: type[int | float] = type(value)
         if area is None:
             area = (0, 100)
+        self.area = copy(area)
+        self.fmt: type[int | float] = type(value)
         self.value = value
         self.last_value = value
+        self.mult = 1 if self.fmt == int else 10
 
-        self.slider = wx.Slider(self, value=int(value), minValue=area[0], maxValue=area[1], style=wx.SL_HORIZONTAL)
+        self.slider = wx.Slider(self, value=int(value * self.mult), style=wx.SL_HORIZONTAL,
+                                minValue=int(area[0] * self.mult), maxValue=int(area[1] * self.mult))
         self.slider.SetLineSize(step)
         self.entry = wx.TextCtrl(self, value=str(value), style=wx.TE_PROCESS_ENTER)
 
@@ -56,7 +58,7 @@ class EntrySlider(wx.Panel):
 
     def on_slider_change(self, event: wx.Event):
         event.Skip()
-        self.value = self.fmt(self.slider.GetValue())
+        self.value = self.fmt(self.slider.GetValue() / self.mult)
         self.entry.SetValue(str(self.value))
 
     def on_slider_finalize(self, event: wx.Event):
@@ -68,12 +70,11 @@ class EntrySlider(wx.Panel):
         self.last_value = self.fmt(self.entry.GetValue())
 
     def on_text_finalize(self, event: wx.Event):
-        event.Skip()
         if event.GetClassName() != "wxCommandEvent":
             event.Skip()
         try:
             self.value = self.fmt(self.entry.GetValue())
-            self.slider.SetValue(int(self.value))
+            self.slider.SetValue(int(self.value * self.mult))
             self.entry.SetValue(str(self.value))
             self.update_value()
         except ValueError as e:
