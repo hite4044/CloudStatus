@@ -202,7 +202,8 @@ class ConfigLinePanel(wx.Panel):
                          DataSaveFmt.NORMAL: "普通格式 (原数据)",
                          DataSaveFmt.PLAYER_MAPPING: "玩家映射格式 (更小)",
                      }),
-            LineData("超时时间", "time_out", float, "获取服务器状态的超时时间 (秒)", (0.5, 6.0))
+            LineData("超时时间", "time_out", float, "获取服务器状态的超时时间 (秒)", (0.5, 6.0)),
+            LineData("重试次数", "retry_times", int, "获取服务器状态失败的重试次数", (1, 5))
         ]
         sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         self.SetFont(ft(11))

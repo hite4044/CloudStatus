@@ -90,7 +90,7 @@ class GUI(wx.Frame):
             return point
         except Exception as e:
             times += 1
-            if times > 3:
+            if times > config.retry_times:
                 logger.error(f"重试次数没了({3}), 获取服务器状态失败: {e}")
                 self.server_status = ServerStatus.OFFLINE
                 return None
