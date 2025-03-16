@@ -28,6 +28,7 @@ class Configer:
     enable_data_save: bool = True
     use_little_skin: bool = False
     data_save_fmt: DataSaveFmt = DataSaveFmt.NORMAL
+    time_out: float = 3.0
 
     def __init__(self):
         self.config_vars = {}

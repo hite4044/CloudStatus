@@ -201,7 +201,8 @@ class ConfigLinePanel(wx.Panel):
                      items_desc={
                          DataSaveFmt.NORMAL: "普通格式 (原数据)",
                          DataSaveFmt.PLAYER_MAPPING: "玩家映射格式 (更小)",
-                     })
+                     }),
+            LineData("超时时间", "time_out", float, "获取服务器状态的超时时间 (秒)", (0.5, 6.0))
         ]
         sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         self.SetFont(ft(11))

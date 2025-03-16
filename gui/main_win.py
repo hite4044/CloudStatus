@@ -79,7 +79,7 @@ class GUI(wx.Frame):
         self.status_flag.set()
         wx.CallLater(200, self.load_points_gui)
     def get_server_status(self) -> ServerPoint | None:
-        server = JavaServer.lookup(config.addr)
+        server = JavaServer.lookup(config.addr, timeout=config.timeout)
         try:
             logger.debug("获取服务器状态")
             status = server.status()
