@@ -35,9 +35,11 @@ def ft(size: int):
         font_cache[size].SetPointSize(size)
     return font_cache[size]
 
+
 def tuple_fmt_time(seconds: float) -> tuple[int, int, int, int]:
     """转化时间戳至时间元组"""
     return int(seconds // 3600 // 24), int(seconds // 3600 % 24), int(seconds % 3600 // 60), int(seconds % 60)
+
 
 def string_fmt_time(seconds: float) -> str:
     """格式化时间戳至字符串"""
@@ -52,6 +54,7 @@ def string_fmt_time(seconds: float) -> str:
     if time_tuple[3] > 0:
         time_str += f"{time_tuple[3]}s"
     return time_str
+
 
 def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: int = 64, no_cache: bool = False):
     """
