@@ -78,19 +78,25 @@ class GUI(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.status_flag.set()
         wx.CallLater(200, self.load_points_gui)
-    def get_server_status(self) -> ServerPoint | None:
-        server = JavaServer.lookup(config.addr, timeout=config.time_out)
+
+    def get_server_status(self, times = 1) -> ServerPoint | None:
         try:
             logger.debug("获取服务器状态")
+            server = JavaServer.lookup(config.addr, timeout=config.time_out)
             status = server.status()
             ping = server.ping()
             point = translate_status(status, ping)
             self.server_status = ServerStatus.ONLINE
             return point
         except Exception as e:
-            self.server_status = ServerStatus.OFFLINE
-            logger.error(f"获取服务器状态失败: {e}")
-        return None
+            times += 1
+            if times > 3:
+                logger.error(f"重试次数没了({3}), 获取服务器状态失败: {e}")
+                self.server_status = ServerStatus.OFFLINE
+                return None
+            else:
+                logger.warning(f"获取服务器状态失败: {e}, 尝试第{times}次..")
+                return self.get_server_status(times)
 
     def on_close(self, _):
         logger.info("程序停止中...")
