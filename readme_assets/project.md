@@ -1,0 +1,25 @@
+## CloudStatus项目导航图
+
+- assets _**程序运行所需资源**_
+- gui 界面
+    - about.py _**"关于"面板**_
+    - events.py _**事件定义**_
+    - main_win.py _**主窗口**_
+    - overview.py _**"总览"面板**_
+    - status_plot.py _**"状态"面板**_
+    - players_info.py _**"玩家"面板**_
+    - config.py _**"设置"面板**_
+    - online_widget.py _**"在线分析"窗口&组件**_
+    - widget.py _**共用的组件**_
+- lib 依赖库
+    - common_data.py _**公共数据对象**_
+    - config.py _**项目配置**_
+    - data.py _**服务器数据**_
+    - info.py _**版本信息**_
+    - log.py _**日志定义**_
+    - perf.py _**性能分析&输出**_
+    - skin_loader.py _**皮肤获取&渲染**_
+- main.py _**程序入口**_
+- LICENSE.txt _**开源许可证**_
+- README.md _**项目介绍**_
+- requirements.txt _**项目依赖库**_
