@@ -25,7 +25,7 @@ def fmt_time_unit(seconds: float, day: bool = False, hour: bool = False, minute:
     if hour:
         if not minute or time_tuple[1] != 0:
             if flag:
-                text += f"{seconds % 3600 / 60:.1f}h"
+                text += f"{seconds / 3600:.1f}h"
             else:
                 text += f"{time_tuple[1]}h"
     if minute:
