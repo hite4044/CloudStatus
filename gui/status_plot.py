@@ -412,6 +412,8 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.axes.grid(True)
         start, stop = self.offset, self.offset + int(len(self.datas) * self.scale)
         self.showing_datas = slice_dict(self.datas, start, stop)
+        if len(self.showing_datas) == 0:
+            return
         self.axes.set_xlim(datetime.fromtimestamp(min(self.showing_datas.keys())),
                            datetime.fromtimestamp(max(self.showing_datas.keys())))
         self.axes.plot(
