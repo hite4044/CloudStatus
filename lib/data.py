@@ -110,6 +110,7 @@ class DataManager:
     """
 
     def __init__(self, data_dir: str):
+        self.data_ctl_lock = Lock()
         self.data_dir = data_dir
         self.non_saved_counter = 0
         self.points_map: dict[str, ServerPoint] = {}
@@ -128,8 +129,9 @@ class DataManager:
         添加一个数据点
         :param point: 数据点
         """
-        self.points_map[point.id_] = point
-        self.non_saved_counter += 1
+        with self.data_ctl_lock:
+            self.points_map[point.id_] = point
+            self.non_saved_counter += 1
         if self.non_saved_counter >= config.saved_per_points:
             self.save_data()
             self.non_saved_counter = 0
@@ -147,38 +149,40 @@ class DataManager:
         删除一个数据点
         :param point: 数据点
         """
-        self.points_map.pop(point.id_)
+        with self.data_ctl_lock:
+            self.points_map.pop(point.id_)
 
     def load_data(self):
         """从文件夹中查找并加载数据点"""
         logger.info(f"从 [{self.data_dir}] 加载数据...")
         load_threads = []
         lock = Lock()
-        timer = Counter()
-        timer.start()
-        for file in listdir(self.data_dir):
-            self.data_files.append(file)  # 把启动时加载的文件名记录下来
-            full_path = join(self.data_dir, file)
-            thread = Thread(name=f"Loader-{str(len(load_threads)).zfill(2)}", target=self.load_a_file,
-                            args=(full_path, lock))
-            thread.start()
-            load_threads.append(thread)
-            if len(load_threads) >= config.data_load_threads:
-                removed_threads = []
-                for thread in load_threads:
-                    if not thread.is_alive():
-                        removed_threads.append(thread)
-                for thread in removed_threads:
-                    load_threads.remove(thread)
-                del removed_threads
+        with self.data_ctl_lock:
+            timer = Counter()
+            timer.start()
+            for file in listdir(self.data_dir):
+                self.data_files.append(file)  # 把启动时加载的文件名记录下来
+                full_path = join(self.data_dir, file)
+                thread = Thread(name=f"Loader-{str(len(load_threads)).zfill(2)}", target=self.load_a_file,
+                                args=(full_path, lock))
+                thread.start()
+                load_threads.append(thread)
                 if len(load_threads) >= config.data_load_threads:
-                    load_threads[0].join()
-                    load_threads.pop(0)
-        for thread in load_threads:
-            thread.join()
+                    removed_threads = []
+                    for thread in load_threads:
+                        if not thread.is_alive():
+                            removed_threads.append(thread)
+                    for thread in removed_threads:
+                        load_threads.remove(thread)
+                    del removed_threads
+                    if len(load_threads) >= config.data_load_threads:
+                        load_threads[0].join()
+                        load_threads.pop(0)
+            for thread in load_threads:
+                thread.join()
 
-        sorted_points = sorted(self.points_map.values(), key=lambda pt: pt.time)
-        self.points_map = {point.id_: point for point in sorted_points}
+            sorted_points = sorted(self.points_map.values(), key=lambda pt: pt.time)
+            self.points_map = {point.id_: point for point in sorted_points}
         logger.info(f"加载完成, 共 {len(self.points_map)} 个数据点, 耗时 {timer.endT()}")
 
     def load_a_file(self, file_path: str, lock: Lock):
@@ -226,19 +230,20 @@ class DataManager:
         if self.last_fmt != data_save_fmt:
             self.last_fmt = data_save_fmt
             rewrite_data = True
-        points_length = len(self.points_map)
 
-        for index, point in enumerate(self.points_map.values()):
-            ready_points.append(point.to_dict())
-            points_counter += 1
-            if points_counter >= config.points_per_file or index == points_length - 1:
-                try:
-                    self.dump_points(ready_points, data_save_fmt, rewrite_data)
-                except OSError as e:
-                    logger.error(f"保存数据时发生错误, 终止保存 -> {e}")
-                    return f"保存数据时发生错误, 终止保存 -> {e}"
-                ready_points = []
-                points_counter = 0
+        with self.data_ctl_lock:
+            points_length = len(self.points_map)
+            for index, point in enumerate(self.points_map.values()):
+                ready_points.append(point.to_dict())
+                points_counter += 1
+                if points_counter >= config.points_per_file or index == points_length - 1:
+                    try:
+                        self.dump_points(ready_points, data_save_fmt, rewrite_data)
+                    except OSError as e:
+                        logger.error(f"保存数据时发生错误, 终止保存 -> {e}")
+                        return f"保存数据时发生错误, 终止保存 -> {e}"
+                    ready_points = []
+                    points_counter = 0
 
         failure_files = listdir(self.data_dir)
         for file in self.data_files:
@@ -258,7 +263,7 @@ class DataManager:
 
     def dump_points(self, points: list[dict], fmt: DataSaveFmt, rewrite_data: bool = False):
         """
-        存储给定的数据点字典到文件, 把所有数据点的时间作哈希作为文件名
+        存储给定的数据点字典到文件, 把所有数据点的时间作md5哈希作为文件名
         :param points: 数据点字典列表
         :param fmt: 数据存储格式
         :param rewrite_data: 是否覆盖已存在的文件
@@ -301,24 +306,25 @@ class DataManager:
         player_active_times = {}  # 记录每个玩家的在线时间段
         last_players = set()  # 上一个数据点中的玩家集合
         last_point = None
-        points_len = len(self.points)
-        for i, point in enumerate(self.points):
-            now_players = set(p.name for p in point.players)  # 当前数据点中的玩家集合
+        points_len = len(self.points_map)
+        with self.data_ctl_lock:
+            for i, point in enumerate(self.points):
+                now_players = set(p.name for p in point.players)  # 当前数据点中的玩家集合
 
-            # 处理新上线的玩家
-            for player in now_players - last_players:
-                if player not in player_active_times:
-                    player_active_times[player] = []
-                player_active_times[player].append([point.time, None])  # 记录上线时间
+                # 处理新上线的玩家
+                for player in now_players - last_players:
+                    if player not in player_active_times:
+                        player_active_times[player] = []
+                        player_active_times[player].append([point.time, None])  # 记录上线时间
 
-            # 处理下线的玩家
-            for player in last_players - now_players:
-                if player in player_active_times and player_active_times[player][-1][1] is None:
-                    player_active_times[player][-1][1] = point.time  # 记录下线时间
+                # 处理下线的玩家
+                for player in last_players - now_players:
+                    if player in player_active_times and player_active_times[player][-1][1] is None:
+                        player_active_times[player][-1][1] = point.time  # 记录下线时间
 
-            last_players = now_players
-            if i == points_len - 1:
-                last_point = point
+                last_players = now_players
+                if i == points_len - 1:
+                    last_point = point
 
         # 处理仍然在线的玩家
         for player, times in player_active_times.items():
@@ -339,20 +345,21 @@ class DataManager:
         active_start: float = 0
         result: list[tuple[float, float]] = []
         points_count = len(self.points_map)
-        for i, point in enumerate(self.points):
-            if i == 0:
-                active_start = point.time
-            now_players = set(p.name for p in point.players)
-            for player in now_players - last_players:
-                if player == player_name:
+        with self.data_ctl_lock:
+            for i, point in enumerate(self.points):
+                if i == 0:
                     active_start = point.time
-            for player in last_players - now_players:
-                if player == player_name:
+                now_players = set(p.name for p in point.players)
+                for player in now_players - last_players:
+                    if player == player_name:
+                        active_start = point.time
+                for player in last_players - now_players:
+                    if player == player_name:
+                        result.append((active_start, point.time))
+                        active_start = 0
+                last_players = now_players
+                if i >= points_count - 1 and active_start != 0:
                     result.append((active_start, point.time))
-                    active_start = 0
-            last_players = now_players
-            if i >= points_count - 1 and active_start != 0:
-                result.append((active_start, point.time))
         return result
 
 
