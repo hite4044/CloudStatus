@@ -36,6 +36,6 @@ class CustomFormatter(logging.Formatter):
 logger = logging.getLogger("CloudStoreLogger")
 logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(CustomFormatter())
 logger.addHandler(console_handler)

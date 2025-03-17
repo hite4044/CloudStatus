@@ -95,7 +95,8 @@ class ServerPoint:
             "ping": self.ping,
         }
 
-    def copy(self, time: float):
+    def copy(self, time: float = None):
+        time = time if time is not None else self.time
         return ServerPoint(time, self.online, self.players, self.ping)
 
     @staticmethod

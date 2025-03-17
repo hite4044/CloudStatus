@@ -448,10 +448,11 @@ class ProgressShower(wx.Panel):
 
         self.pause_btn.Bind(wx.EVT_BUTTON, self.pause_btn_click)
         self.get_status_btn.Bind(wx.EVT_BUTTON, self.get_status_now)
+        self.start_wait = perf_counter()
+        self.status = StatusStatus(ProgressStatus.WAIT)
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.progress_update, self.timer)
         self.timer.Start(490)
-        self.start_wait = perf_counter()
 
     def pause_btn_click(self, _):
         # 发送 暂停/恢复 事件
@@ -468,7 +469,9 @@ class ProgressShower(wx.Panel):
             self.get_status_btn.Enable(True)
             self.pause_btn.SetLabel("暂停")
             self.info_text.SetBackgroundColour(self.pause_btn.GetBackgroundColour())
-            self.get_status_now(None)
+            self.start_wait = perf_counter()
+            self.info_text.fmt = "下一次获取: {}后"
+            self.timer.Start(490)
 
     def get_status_now(self, _):
         # 发送 立即获取服务器信息 事件
@@ -481,15 +484,39 @@ class ProgressShower(wx.Panel):
         self.info_text.SetLabel("正在获取...")
 
     def progress_update(self, _):
-        progress_percent = (perf_counter() - self.start_wait) / config.check_inv
+        if self.status.status == ProgressStatus.WAIT:
+            progress_percent = (perf_counter() - self.start_wait) / config.check_inv
+            self.info_text.format(f"{config.check_inv - (perf_counter() - self.start_wait):.1f}秒")
+        elif self.status.status == ProgressStatus.FP_WAIT:
+            progress_percent = (perf_counter() - self.start_wait) / config.fp_re_status_inv
+            self.info_text.format(f"{config.fp_re_status_inv - (perf_counter() - self.start_wait):.1f}秒")
+        else:
+            self.timer.Stop()
+            return
         if progress_percent >= 1:
             self.timer.Stop()
-            self.progress_bar.Pulse()
-            self.info_text.SetLabel("正在获取...")
         else:
             self.progress_bar.SetValue(int(progress_percent * 114514))
-            self.info_text.format(f"{config.check_inv - (perf_counter() - self.start_wait):.1f}秒")
 
-    def load_point(self, _):
-        self.start_wait = perf_counter()
-        self.timer.Start()
+    def set_status(self, status: StatusStatus):
+        self.status = status
+        if status.status in [ProgressStatus.WAIT, ProgressStatus.FP_WAIT]:
+            self.start_wait = perf_counter()
+            self.timer.Start(490)
+            if status.status == ProgressStatus.FP_WAIT:
+                self.info_text.fmt = f"等待第{status.times}次获取玩家列表, 等待: {'{}'}, 剩余玩家: {status.players_left}"
+            else:
+                self.info_text.fmt = "下一次获取: {}后"
+        elif status.status in [ProgressStatus.STATUS, ProgressStatus.FP_STATUS]:
+            self.timer.Stop()
+            self.progress_bar.Pulse()
+            if status.status == ProgressStatus.FP_STATUS:
+                self.info_text.SetLabel(f"第{status.times}次获取玩家列表...")
+        elif status.status == ProgressStatus.PAUSE:
+            self.timer.Stop()
+            self.progress_bar.Pulse()
+            self.info_text.SetLabel("暂停中")
+            self.info_text.SetBackgroundColour(wx.Colour((255, 242, 0)))
+            self.pause_btn.SetLabel("恢复")
+            self.get_status_btn.Enable(False)
+            return

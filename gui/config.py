@@ -203,7 +203,10 @@ class ConfigLinePanel(wx.Panel):
                          DataSaveFmt.PLAYER_MAPPING: "玩家映射格式 (更小)",
                      }),
             LineData("超时时间", "time_out", float, "获取服务器状态的超时时间 (秒)", (0.5, 6.0)),
-            LineData("重试次数", "retry_times", int, "获取服务器状态失败的重试次数", (1, 5))
+            LineData("重试次数", "retry_times", int, "获取服务器状态失败的重试次数", (1, 5)),
+            LineData("启用获取全部玩家", "enable_full_players", bool, "获取服务器状态直到获取到全部玩家名称"),
+            LineData("AP循环获取间隔", "fp_re_status_inv", float, "重获全部玩家 的间隔", (1.0, 10.0)),
+            LineData("AP最大重试次数", "fp_max_try", int, "重获全部玩家 的最大重试次数", (2, 7)),
         ]
         sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         self.SetFont(ft(11))

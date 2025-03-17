@@ -3,6 +3,7 @@ widget.py
 在此项目中用到的:
 实用小部件&实用函数
 """
+from dataclasses import dataclass
 from datetime import datetime, time as dt_time, date as dt_date, timedelta
 from enum import Enum
 from os import mkdir
@@ -27,6 +28,21 @@ GA_WAIT_TIME = 2
 class GradientDirection(Enum):
     HORIZONTAL = 0
     VERTICAL = 1
+
+
+class ProgressStatus(Enum):
+    WAIT = 0
+    STATUS = 1
+    FP_STATUS = 2
+    FP_WAIT = 3
+    PAUSE = 4
+
+
+@dataclass
+class StatusStatus:
+    status: ProgressStatus
+    times: int = 0
+    players_left: int = 0
 
 
 def ft(size: int):
@@ -187,7 +203,7 @@ def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, i
 
 class NoTabNotebook(wx.Panel):
     def __init__(self, parent: wx.Window):
-        super().__init__(parent, style = wx.TRANSPARENT_WINDOW)
+        super().__init__(parent, style=wx.TRANSPARENT_WINDOW)
         self.panels: list[wx.Window] = []
         self.now_window: wx.Window | None = None
         self.sizer = wx.BoxSizer(wx.VERTICAL)

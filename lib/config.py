@@ -30,6 +30,9 @@ class Configer:
     data_save_fmt: DataSaveFmt = DataSaveFmt.NORMAL
     time_out: float = 3.0
     retry_times: int = 3
+    enable_full_players: bool = False
+    fp_re_status_inv: float = 4.0
+    fp_max_try: int = 5
 
     def __init__(self):
         self.config_vars = {}
