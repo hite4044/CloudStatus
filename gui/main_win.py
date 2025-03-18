@@ -133,7 +133,7 @@ class GUI(wx.Frame):
             self.set_status(StatusStatus(ProgressStatus.FP_WAIT, fp_times + 1, com_point.online - len(players)))
             if self.event_flag.is_set():
                 return "event", None
-            if com_point is None:
+            if now_point is None:
                 logger.debug("完整玩家列表获取失败, 返回当前点数据")
                 return "fp_error", point
             logger.debug(f"第{fp_times}次, 获取到玩家列表: {[p.name for p in now_point.players]}")
