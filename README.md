@@ -47,11 +47,10 @@ _**版本最新**_ (介于我不写测试, bug可能会有几只)🪳🕷️🐛
 
 ### 画廊
 
-#### 软件主界面 ![主界面](readme_assets/main_tab.png)
+#### 总览 ![总览面板](readme_assets/overview.png)
 
-#### 玩家在线分析 ![玩家在线分析](readme_assets/players_online_list.png)
+#### 在线图表 ![在线图表](readme_assets/online_plot.png)
 
-#### 玩家在线时间段分析 ![玩家在线时间段分析](readme_assets/players_online_bar.png)
+#### 玩家在线分析 ![玩家在线分析](readme_assets/player_analyze.png)
 
-#### 配置界面
-![配置界面](readme_assets/config_tab.png)
+#### 设置 ![设置面板](readme_assets/config.png)
