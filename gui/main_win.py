@@ -258,12 +258,12 @@ class GUI(wx.Frame):
                     last_status = last_status
                 else:
                     last_status = perf_counter() - config.check_inv / 2
-                if msg == ["ok", "error"]:
+                if msg == ["ok", "error", "fp_error", "fp_ok"]:
                     if point is not None:
                         self.data_manager.add_point(point)
-                    wx.CallAfter(self.load_point, point)
-                elif msg in ["fp_error", "fp_ok"]:
-                    self.data_manager.add_point(point)
+                        self.server_status = ServerStatus.ONLINE
+                    else:
+                        self.server_status = ServerStatus.OFFLINE
                     wx.CallAfter(self.load_point, point)
 
             self.event_flag.wait(1)
