@@ -258,7 +258,7 @@ class GUI(wx.Frame):
                     last_status = last_status
                 else:
                     last_status = perf_counter() - config.check_inv / 2
-                if msg == ["ok", "error", "fp_error", "fp_ok"]:
+                if msg in ["ok", "error", "fp_error", "fp_ok"]:
                     if point is not None:
                         self.data_manager.add_point(point)
                         self.server_status = ServerStatus.ONLINE
