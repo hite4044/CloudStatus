@@ -264,13 +264,13 @@ class PlayerOnlineOverviewPanel(wx.Panel):
                 total_players.add(player.name)
         self.total_players.SetData(str(len(total_players)))
 
-        day_start = datetime.combine(datetime.now().date(), datetime.min.time()).timestamp()
-        day_end = datetime.combine(datetime.now().date(), datetime.max.time()).timestamp()
+        day_end = datetime.now().timestamp()
+        day_start = (datetime.now() + timedelta(days=-1)).timestamp()
         today_players = set()
         total_online_time = 0
         for player, times in ranges:
             for start, end in times:
-                if start <= day_end and end >= day_start:
+                if day_start <= start <= day_end or day_start <= end <= day_end:
                     today_players.add(player)
                 total_online_time += end - start
         self.today_players.SetData(str(len(today_players)))
