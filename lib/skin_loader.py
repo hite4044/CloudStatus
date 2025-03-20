@@ -5,6 +5,9 @@ import uuid
 from base64 import b64decode
 from enum import Enum
 from io import BytesIO
+from json import JSONDecodeError
+from os import makedirs, remove
+from os.path import isfile
 
 import requests
 from PIL import Image, UnidentifiedImageError
@@ -12,7 +15,7 @@ from PIL import Image, UnidentifiedImageError
 from lib.log import logger
 
 headers = {
-    "User-Agent": "CloudStatus@github LoadPlayerHead lib/skin_loader.py:request_player_head",
+    "User-Agent": "CloudStatus@github <LoadPlayerHead> lib/skin_loader.py:request_player_head_raw",
     "Content-Type": "application/json"
 }
 
@@ -28,6 +31,7 @@ class SkinLoadWay(Enum):
     MOJANG = 0
     OFFLINE = 1
     LITTLE_SKIN = 2
+    FAILED = 64
 
 
 def get_default_skin_index(uuid_input):
@@ -88,13 +92,27 @@ def username_to_uuid(username: str) -> uuid.UUID:
     return uuid.uuid3(namespace, username_clean)
 
 
-def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -> Image.Image | None:
+def get_offline_skin(name: str):
+    player_uuid = username_to_uuid(name)
+    skin_index = get_default_skin_index(player_uuid)
+    with open(DEFAULT_SKINS[skin_index], "rb") as f:
+        return Image.open(BytesIO(f.read()))
+
+
+def request_player_skin_raw(name: str, way: SkinLoadWay) -> tuple[SkinLoadWay, Image.Image | None]:
     logger.debug(f"请求玩家[{name}]头像, 方式: {way}")
     if way == SkinLoadWay.MOJANG:
-        player_info = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{name}").json()
+        resp = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{name}")
+        try:
+            player_info = resp.json()
+        except JSONDecodeError:
+            return SkinLoadWay.FAILED, None
+        if player_info.get("errorMessage"):
+            logger.debug(f"玩家 {name} 不存在")
+            return SkinLoadWay.FAILED, None
         if not player_info.get("id"):
             logger.debug(f"玩家 {name} 没有皮肤, 加载默认皮肤")
-            return request_player_skin(name, SkinLoadWay.OFFLINE)
+            return request_player_skin_raw(name, SkinLoadWay.OFFLINE)
         player_uuid = player_info["id"]
         player_profile = requests.get(
             f"https://sessionserver.mojang.com/session/minecraft/profile/{player_uuid}").json()
@@ -103,14 +121,12 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
         skin_url = skin_info["textures"]["SKIN"]["url"]
         skin_bytes = requests.get(skin_url).content
     elif way == SkinLoadWay.OFFLINE:
-        player_uuid = username_to_uuid(name)
-        skin_index = get_default_skin_index(player_uuid)
-        with open(DEFAULT_SKINS[skin_index], "rb") as f:
-            skin_bytes = f.read()
+        return SkinLoadWay.OFFLINE, get_offline_skin(name)
     elif way == SkinLoadWay.LITTLE_SKIN:
         player_info = requests.get(f"https://littleskin.cn/csl/{name}.json").json()
         if player_info == {}:
-            return None
+            logger.debug(f"玩家 {name} 不存在")
+            return SkinLoadWay.FAILED, None
         else:
             if player_info["skins"].get("default"):
                 skin_id = player_info["skins"]["default"]
@@ -118,16 +134,46 @@ def request_player_skin(name: str, way: SkinLoadWay = SkinLoadWay.LITTLE_SKIN) -
                 skin_id = player_info["skins"]["slim"]
             else:
                 logger.debug(f"玩家 {name} 没有皮肤, 加载默认皮肤")
-                return request_player_skin(name, SkinLoadWay.OFFLINE)
+                return request_player_skin_raw(name, SkinLoadWay.OFFLINE)
             skin_bytes = requests.get(f"https://littleskin.cn/textures/{skin_id}").content
     else:
         raise ValueError("Invalid skin load way")
     bytes_io = BytesIO(skin_bytes)
     try:
-        return Image.open(bytes_io).convert("RGBA")
+        return way, Image.open(bytes_io).convert("RGBA")
     except UnidentifiedImageError:
-        return None
+        return SkinLoadWay.FAILED, None
 
+
+def get_player_skin(name: str, way: SkinLoadWay, use_cache: bool = True) -> Image.Image | None:
+    makedirs("cache/skin", exist_ok=True)
+    logger.debug(f"获取玩家[{name}]皮肤, 方式: {way}, 使用缓存: {use_cache}")
+
+    if isfile(f"cache/skin/{name}_failed(.png"):
+        if use_cache:
+            return None
+        else:
+            remove(f"cache/skin/{name}_failed(.png")
+    if isfile(f"cache/skin/{name}_offline(.png"):
+        if use_cache:
+            return get_offline_skin(name)
+        else:
+            remove(f"cache/skin/{name}_offline(.png")
+
+    if not isfile(f"cache/skin/{name}.png") or not use_cache:
+        final_way, skin = request_player_skin_raw(name, way)
+        if skin is None:
+            with open(f"cache/skin/{name}_failed(.png", "w"):
+                pass
+            return None
+        if final_way == SkinLoadWay.OFFLINE:
+            with open(f"cache/skin/{name}_offline(.png", "w"):
+                pass
+        else:
+            skin.save(f"cache/skin/{name}.png")
+    else:
+        skin = Image.open(f"cache/skin/{name}.png")
+    return skin
 
 
 def render_player_head(skin: Image.Image, target_size: int = 80) -> Image.Image:
@@ -149,3 +195,35 @@ def render_player_head(skin: Image.Image, target_size: int = 80) -> Image.Image:
     scaled_wear = head_wear.resize((final_size, final_size), Image.Resampling.BOX)
     base_canvas.paste(scaled_wear, (0, 0), mask=scaled_wear)
     return base_canvas
+
+
+def get_player_head(name: str, way: SkinLoadWay, size: int = 80, use_cache: bool = True) -> Image.Image:
+    makedirs("cache/head", exist_ok=True)
+    head_root = f"cache/head/{size}/{name}"
+    makedirs(f"cache/head/{size}", exist_ok=True)
+    
+    skin = get_player_skin(name, way, use_cache)
+    if isfile(f"{head_root}_offline(.png"):
+        if use_cache:
+            return render_player_head(skin, size)
+        remove(f"{head_root}_offline(.png")
+    if isfile(f"{head_root}_failed(.png"):
+        if use_cache:
+            return Image.open("assets/default_skin/error_head.png")
+        remove(f"{head_root}_failed(.png")
+    if skin is None:
+        head = Image.open("assets/default_skin/error_head.png")
+        head.resize((int(size * 1.1),) * 2, Image.Resampling.BOX)
+    elif isfile(f"{head_root}.png") and not use_cache:
+        head = Image.open(f"{head_root}.png")
+    else:
+        head = render_player_head(skin, size)
+        if isfile(f"cache/skin/{name}_offline(.png"):
+            with open(f"{head_root}_offline(.png", "w"):
+                pass
+        elif isfile(f"cache/skin/{name}_failed(.png"):
+            with open(f"{head_root}_failed(.png", "w"):
+                pass
+        else:
+            head.save(f"{head_root}.png")
+    return head

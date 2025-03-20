@@ -3,7 +3,7 @@
 提供 服务器预览 的GUI定义文件
 """
 from threading import Thread
-from time import strftime, localtime, time
+from time import strftime, localtime
 
 from gui.events import GetStatusNowEvent, AskToAddPlayerEvent, EVT_ASK_TO_ADD_PLAYER, RemovePlayerOverviewEvent, \
     EVT_REMOVE_PLAYER_OVERVIEW
@@ -99,9 +99,10 @@ class PlayerCard(wx.Panel):
 
     def load_card_color(self):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
-        image = Image.open(f"heads_cache/{self.player}_80.png")
-        left_eye = image.getpixel((28, 58))[:3]
-        right_eye = image.getpixel((58, 58))[:3]
+        way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
+        head = get_player_head(self.player, way, 80)
+        left_eye = head.getpixel((28, 58))[:3]
+        right_eye = head.getpixel((58, 58))[:3]
 
         if left_eye == right_eye:
             color_left = color_right = EasyColor(*right_eye)
@@ -328,9 +329,6 @@ class OverviewPanel(wx.Panel):
         self.status_label.SetFont(ft(24))
         self.reset_btn.Bind(wx.EVT_BUTTON, self.on_reset)
         self.update_btn.Bind(wx.EVT_BUTTON, self.on_update)
-        # noinspection SpellCheckingInspection
-        self.update_data(["hite404", "lwuxianfengguang", "Olaire", "Cherries_", "haijinzi", "water_melon_awa"], time(),
-                         ServerStatus.ONLINE)
 
     def on_reset(self, _):
         if len(self.data_manager.points) > 0:

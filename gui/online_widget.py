@@ -443,15 +443,15 @@ class PlayerOnlineWin(wx.Frame):
                 break
         self.name_label.SetFont(ft(ft_size))
 
-    def set_icon(self):
-        icon = wx.Icon(f"heads_cache/{self.player}_120.png", wx.BITMAP_TYPE_PNG)
-        self.SetIcon(icon)
+    def set_icon(self, head: wx.Image):
+        self.SetIcon(wx.Icon(head.ConvertToBitmap(-1)))
 
     def load_card_color(self):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
-        image = Image.open(f"heads_cache/{self.player}_120.png")
-        left_eye = image.getpixel((42, 88))[:3]
-        right_eye = image.getpixel((88, 88))[:3]
+        way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
+        head = get_player_head(self.player, way, 100)
+        left_eye = head.getpixel((35, 85))[:3]
+        right_eye = head.getpixel((73, 85))[:3]
 
         if left_eye == right_eye:
             color_left = color_right = EasyColor(*right_eye)
@@ -460,8 +460,8 @@ class PlayerOnlineWin(wx.Frame):
         self.bg_binder.set_color(color_left.set_luminance(0.5).wxcolor, color_right.set_luminance(0.7).wxcolor)
         self.Refresh()
 
-    def load_head(self, head: wx.Bitmap):
-        self.set_icon()
+    def load_head(self, head: wx.Image):
         self.head.SetBitmap(head)
+        self.set_icon(head)
         self.load_card_color()
         self.Layout()

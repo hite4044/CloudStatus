@@ -330,6 +330,8 @@ class DataManager:
 
         # 处理仍然在线的玩家
         for player, start in range_start_players.items():
+            if player not in player_active_times:
+                player_active_times[player] = []
             player_active_times[player].append((start, last_point.time))
 
         # 转换为元组形式

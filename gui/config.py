@@ -221,7 +221,7 @@ class CtlBtnPanel(wx.Panel):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
         buttons: list[tuple[str, str, Callable[[Any], None]]] = [
-            ("删除头像缓存", "也可到heads_cache目录下删除", self.clear_head_cache),
+            ("删除缓存", "也可删除cache目录, 主要是缓存的皮肤和头像", self.clear_cache),
             ("保存数据", "立即保存当前数据到文件", self.save_data_now),
         ]
         sizer = wx.GridSizer(len(buttons), 3, 5, 5)
@@ -233,7 +233,7 @@ class CtlBtnPanel(wx.Panel):
         self.SetSizer(sizer)
 
     @staticmethod
-    def clear_head_cache(_):
+    def clear_cache(_):
         cache_dir = "heads_cache"
         for file_name in os.listdir(cache_dir):
             if file_name.endswith(".png"):

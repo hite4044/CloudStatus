@@ -6,8 +6,6 @@ widget.py
 from dataclasses import dataclass
 from datetime import datetime, time as dt_time, date as dt_date, timedelta
 from enum import Enum
-from os import mkdir
-from os.path import isfile, isdir
 from typing import Callable
 
 import wx
@@ -17,7 +15,7 @@ from colour import Color
 from wx.adv import DatePickerCtrl
 
 from lib.config import config
-from lib.skin_loader import request_player_skin, render_player_head, SkinLoadWay
+from lib.skin_loader import SkinLoadWay, get_player_head
 
 font_cache: dict[int, wx.Font] = {}
 maxsize = 1919810
@@ -80,20 +78,19 @@ def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: i
     :param target_size: 目标渲染大小
     :param no_cache: 不使用缓存
     """
-    if not isdir("heads_cache"):
-        mkdir("heads_cache")
-
-    if not isfile(f"heads_cache/{name}_{target_size}.png") or no_cache:
-        skin = request_player_skin(name, SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG)
-        if skin is None:
-            head = Image.open("assets/default_skin/error_head.png")
-        else:
-            head = render_player_head(skin, target_size)
-        head = head.convert("RGBA")
-        head.save(f"heads_cache/{name}_{target_size}.png")
-    bitmap = wx.Image()
-    bitmap.LoadFile(f"heads_cache/{name}_{target_size}.png")
+    way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
+    head = get_player_head(name, way, target_size, not no_cache)
+    bitmap = PilImg2WxImg(head)
     wx.CallAfter(cbk, bitmap)
+
+
+def PilImg2WxImg(image: Image.Image):
+    """PIL的Image转化为wxImage"""
+    bitmap: wx.Image = wx.Image(image.size[0], image.size[1])
+    bitmap.SetData(image.convert("RGB").tobytes())
+    bitmap.alpha_buffer = image.convert("RGBA").tobytes()[3::4]
+    bitmap.SetAlphaBuffer(bitmap.alpha_buffer)
+    return bitmap
 
 
 class EasyColor:
