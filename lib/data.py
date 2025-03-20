@@ -7,6 +7,7 @@
 from copy import copy
 from ctypes import windll
 from dataclasses import dataclass
+from datetime import datetime
 from hashlib import md5
 from os import listdir, remove, mkdir
 from os.path import join, basename, isfile
@@ -304,7 +305,8 @@ class DataManager:
         获取所有玩家的在线时间段范围
         :return: 一个字典，键为玩家名称，值为该玩家的所有在线时间段列表
         """
-        player_active_times = {}  # 记录每个玩家的在线时间段
+        player_active_times: dict[str, list[tuple[float, float | None]]] = {}  # 记录每个玩家的在线时间段
+        range_start_players: dict[str, float] = {}
         last_players = set()  # 上一个数据点中的玩家集合
         last_point = None
         points_len = len(self.points_map)
@@ -314,25 +316,21 @@ class DataManager:
 
                 # 处理新上线的玩家
                 for player in now_players - last_players:
-                    if player not in player_active_times:
-                        player_active_times[player] = []
-                        player_active_times[player].append([point.time, None])  # 记录上线时间
+                    range_start_players[player] = point.time
 
                 # 处理下线的玩家
                 for player in last_players - now_players:
-                    if player in player_active_times and player_active_times[player][-1][1] is None:
-                        player_active_times[player][-1][1] = point.time  # 记录下线时间
+                    if player not in player_active_times:
+                        player_active_times[player] = []
+                    player_active_times[player].append((range_start_players.pop(player), point.time))  # 记录上线时间
 
                 last_players = now_players
                 if i == points_len - 1:
                     last_point = point
 
         # 处理仍然在线的玩家
-        for player, times in player_active_times.items():
-            for i, time_range in enumerate(times):
-                if time_range[1] is None:  # 如果玩家仍然在线
-                    time_range[1] = last_point.time  # 使用最后一个数据点的时间作为下线时间
-                times[i] = (time_range[0], time_range[1])
+        for player, start in range_start_players.items():
+            player_active_times[player].append((start, last_point.time))
 
         # 转换为元组形式
         return player_active_times
