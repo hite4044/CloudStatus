@@ -105,6 +105,44 @@ class ServerPoint:
         return ServerPoint(**dic, players=players)
 
 
+def dumps_player_list_mapping(points: list[dict]):
+    player_list_map: dict[str, list[dict[str, str]]] = {}
+    for i, pt in enumerate(points):
+        players: list[dict[str, str]] = copy(pt["players"])
+        player_list_id: str = get_players_hash(players)
+        if player_list_id not in player_list_map:
+            player_list_map[player_list_id] = players
+        pt["players"] = player_list_id
+    return {
+        "fmt": DataSaveFmt.PLAYER_LIST_MAPPING.value,
+        "points": points,
+        "players_mapping": player_list_map,
+    }
+
+
+def dumps_player_mapping(points: list[dict]):
+    player_list_map: dict[str, list[str]] = {}
+    players_map: dict[str, dict[str, str]] = {}
+    mapped_players = set()
+    for i, pt in enumerate(points):
+        raw_players: list[dict[str, str]] = copy(pt["players"])
+        players = [p["name"] for p in raw_players]
+        player_list_id: str = get_players_hash(raw_players)
+        if player_list_id not in player_list_map:
+            player_list_map[player_list_id] = players
+        pt["players"] = player_list_id
+        for player in raw_players:
+            if player["name"] not in mapped_players:
+                players_map[player["name"]] = player
+                mapped_players.add(player["name"])
+    return {
+        "fmt": DataSaveFmt.PLAYER_MAPPING.value,
+        "points": points,
+        "player_list_mapping": player_list_map,
+        "players_mapping": players_map,
+    }
+
+
 class DataManager:
     """
     用于管理数据点加载、修改、保存的类
@@ -202,17 +240,31 @@ class DataManager:
                 for point_dict in data_obj:
                     point = ServerPoint.from_dict(point_dict)
                     self.points_map[point.id_] = point
-            elif isinstance(data_obj, dict) and data_obj["fmt"] == DataSaveFmt.PLAYER_MAPPING.value:
-                players_mapping: dict[str, list[dict[str, str]]] = data_obj["players_mapping"]
+            elif isinstance(data_obj, dict) and data_obj["fmt"] == DataSaveFmt.PLAYER_LIST_MAPPING.value:
+                player_list_map_t1: dict[str, list[dict[str, str]]] = data_obj["players_mapping"]
                 for point_dict in data_obj["points"]:
-                    players_id: str = point_dict["players"]
-                    if players_id in players_mapping:
-                        point_dict["players"] = players_mapping[players_id]
+                    players_list_id: str = point_dict["players"]
+                    if players_list_id in player_list_map_t1:
+                        point_dict["players"] = player_list_map_t1[players_list_id]
                     else:
                         point_dict["players"] = []
-                        logger.warning(f"[{thr_name}] 玩家映射文件 [{basename(file_path)}] 中找不到玩家映射 {players_id}")
+                        logger.warning(
+                            f"[{thr_name}] 玩家映射文件 [{basename(file_path)}] 中找不到玩家映射 {players_list_id}")
                     point = ServerPoint.from_dict(point_dict)
                     self.points_map[point.id_] = point
+            elif isinstance(data_obj, dict) and data_obj["fmt"] == DataSaveFmt.PLAYER_MAPPING.value:
+                player_list_map_t2: dict[str, list[str]] = data_obj["player_list_mapping"]
+                players_map: dict[str, dict[str, str]] = data_obj["players_mapping"]
+                for point_dict in data_obj["points"]:
+                    player_list_id = point_dict["players"]
+                    if player_list_id in player_list_map_t2:
+                        players = player_list_map_t2[player_list_id]
+                    else:
+                        players = []
+                        logger.warning(
+                            f"[{thr_name}] 玩家映射文件 [{basename(file_path)}] 中找不到玩家映射 {player_list_id}")
+                    raw_players = [players_map[name] for name in players]
+                    point_dict["players"] = raw_players
 
     def save_data(self) -> None | str:
         """
@@ -277,25 +329,17 @@ class DataManager:
 
         if not exists(save_path) or rewrite_data:
             if fmt == DataSaveFmt.NORMAL:
-                with open(save_path, "w") as f:
-                    # noinspection PyTypeChecker
-                    json.dump(points, f)
+                final_content = points
+            elif fmt == DataSaveFmt.PLAYER_LIST_MAPPING:
+                final_content = dumps_player_list_mapping(points)
             elif fmt == DataSaveFmt.PLAYER_MAPPING:
-                player_mapping: dict[str, list[dict[str, str]]] = {}
-                for i, pt in enumerate(points):
-                    players: list[dict[str, str]] = copy(pt["players"])
-                    players_id: str = get_players_hash(players)
-                    if players_id not in player_mapping:
-                        player_mapping[players_id] = players
-                    pt["players"] = players_id
-                final_content = {
-                    "fmt": fmt.value,
-                    "points": points,
-                    "players_mapping": player_mapping,
-                }
-                with open(save_path, "w") as f:
-                    # noinspection PyTypeChecker
-                    json.dump(final_content, f)
+                final_content = dumps_player_mapping(points)
+            else:
+                logger.error(f"未知的存储格式 -> {fmt}")
+                return
+            with open(save_path, "w") as f:
+                # noinspection PyTypeChecker
+                json.dump(final_content, f)
             logger.info(f"保存文件 [{hash_hex + '.json'}]")
         self.data_files.append(hash_hex + ".json")
 

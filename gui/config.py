@@ -223,10 +223,11 @@ class ConfigLinePanel(wx.Panel):
             ConfigData("使用LittleSkin", "use_little_skin", bool,
                        "是否使用LittleSkin站加载皮肤, 否则使用正版皮肤\n注：需要清除头像缓存"),
             ConfigData("数据文件格式", "data_save_fmt", DataSaveFmt,
-                       tip="使用新的数据格式, 可以安全地随意切换数据格式 (保存性能可能不一样)\n保存数据时使用新的格式, 或者手动保存",
+                       tip="使用新的数据格式, 可以安全地随意切换数据格式 (保存性能有差别)\n下一次保存数据时使用新的格式",
                        items_desc={
-                           DataSaveFmt.NORMAL: "普通格式 (原数据)",
-                           DataSaveFmt.PLAYER_MAPPING: "玩家映射格式 (更小)",
+                           DataSaveFmt.NORMAL: "普通格式 (速度中等) (100%)",
+                           DataSaveFmt.PLAYER_LIST_MAPPING: "玩家列表映射格式 (速度快) (50%)",
+                           DataSaveFmt.PLAYER_MAPPING: "玩家映射格式 (速度中等) (36%)",
                        }),
             ConfigGroup("全部玩家", [
                 ConfigData("启用获取全部玩家", "enable_full_players", bool, "重复获取服务器状态直到获取到全部玩家名称"),

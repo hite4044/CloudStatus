@@ -11,7 +11,8 @@ from lib.log import logger
 
 class DataSaveFmt(Enum):
     NORMAL = 0
-    PLAYER_MAPPING = 1
+    PLAYER_LIST_MAPPING = 1
+    PLAYER_MAPPING = 2
 
 
 class Configer:
