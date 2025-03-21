@@ -123,7 +123,7 @@ class GUI(wx.Frame):
             if point is None:
                 return "error", None
             return "ok", point
-        players = set()
+        players = set(point.players)
         com_point = point.copy()
         fp_times = 0
         over_flag = 0
