@@ -209,7 +209,7 @@ class ConfigLinePanel(wx.Panel):
             ]),
             ConfigGroup("数据", [
                 ConfigData("启用保存数据功能", "enable_data_save", bool, "一般用于远程路径查看数据"),
-                ConfigData("数据文件夹", "data_dir", str, "存放路径点数据文件的文件夹"),
+                ConfigData("数据文件夹", "data_dir", str, "存放路径点数据文件的文件夹\n需要重新启动程序以生效"),
                 ConfigData("点/文件", "points_per_file", int, "每个文件存储的最大数据点数量", (100, 5000)),
                 ConfigData("点/保存", "saved_per_points", int, "获取多少个数据点后保存一次数据", (1, 20)),
                 ConfigData("数据加载线程数", "data_load_threads", int, "一般越大越快, 推荐 4-8", (1, 32)),
