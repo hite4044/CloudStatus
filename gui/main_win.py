@@ -117,7 +117,7 @@ class GUI(wx.Frame):
         """
         self.set_status(StatusStatus(ProgressStatus.STATUS))
         logger.debug("获取服务器状态")
-        point = get_server_status_retry()
+        point = get_server_status_retry(use_ping=config.status_ping)
         if point is None or len(point.players) == point.online or (not config.enable_full_players):
             self.set_status(StatusStatus(ProgressStatus.WAIT))
             if point is None:

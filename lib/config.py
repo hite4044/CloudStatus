@@ -33,6 +33,7 @@ class Configer:
     enable_full_players: bool = False
     fp_re_status_inv: float = 4.0
     fp_max_try: int = 5
+    status_ping: bool = True
 
     def __init__(self):
         self.config_vars = {}

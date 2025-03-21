@@ -233,6 +233,8 @@ class ConfigLinePanel(wx.Panel):
                 ConfigData("FP循环获取间隔", "fp_re_status_inv", float, "重获全部玩家 的间隔", (1.0, 10.0)),
                 ConfigData("FP最大重试次数", "fp_max_try", int, "重获全部玩家 的最大重试次数", (2, 7))
             ]),
+            ConfigData("记录服务器延迟", "status_ping", bool,
+                       "获取服务器信息时是否获取服务器延迟\n减少数据文件大小, 不影响之前的数据\n有极微小的性能提升")
         ]
         final_sizer = wx.GridSizer(1, 2, 5, 5)
         line_sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)

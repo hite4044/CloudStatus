@@ -7,7 +7,6 @@
 from copy import copy
 from ctypes import windll
 from dataclasses import dataclass
-from datetime import datetime
 from hashlib import md5
 from os import listdir, remove, mkdir
 from os.path import join, basename, isfile
@@ -81,7 +80,7 @@ def get_players_hash(players: list[dict[str, str]]) -> str:
 class ServerPoint:
     """数据点类"""
 
-    def __init__(self, time: float, online: int, players: list[Player], ping: float, **_):
+    def __init__(self, time: float, online: int, players: list[Player], ping: float = 0, **_):
         self.time = time  # (sec)
         self.online = online
         self.players = players
@@ -93,7 +92,7 @@ class ServerPoint:
             "time": self.time,
             "online": self.online,
             "players": [player.to_dict() for player in self.players],
-            "ping": self.ping,
+            **({"ping": self.ping} if self.ping != 0 else {}),
         }
 
     def copy(self, time: float = None):
