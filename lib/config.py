@@ -35,6 +35,9 @@ class Configer:
     fp_re_status_inv: float = 4.0
     fp_max_try: int = 5
     status_ping: bool = True
+    today_player_calc_way: int = 1
+    tcw_custom_hours: int = 24
+    tcw_custom_start: int = 4
 
     def __init__(self):
         self.config_vars = {}

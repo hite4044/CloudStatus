@@ -224,6 +224,9 @@ class PlayerOnlineOverviewPanel(wx.Panel):
         self.activate_today_players = []
         self.activate_active_players = []
         self.data_manager = common_data.data_manager
+        self.today_calc_way: int = config.today_player_calc_way
+        self.custom_hours: int = config.tcw_custom_hours
+        self.custom_start: int = config.tcw_custom_start
 
         self.total_players = LabeledData(self, label="玩家总数", data="0")
         self.today_players = LabeledData(self, label="今日在线", data="0")
@@ -243,6 +246,7 @@ class PlayerOnlineOverviewPanel(wx.Panel):
         self.total_players.Bind(wx.EVT_LEFT_DCLICK, self.total_players_cbk)
         self.today_players.Bind(wx.EVT_LEFT_DCLICK, self.today_players_cbk)
         self.active_players.Bind(wx.EVT_LEFT_DCLICK, self.active_players_cbk)
+        self.today_players.Bind(wx.EVT_RIGHT_DOWN, self.on_today_player_menu)
 
     def total_players_cbk(self, _):
         dialog = DataShowDialog(self, self.activate_total_players, "玩家", "所有玩家")
@@ -251,6 +255,32 @@ class PlayerOnlineOverviewPanel(wx.Panel):
     def today_players_cbk(self, _):
         dialog = DataShowDialog(self, self.activate_today_players, "玩家", "今日在线玩家")
         dialog.ShowModal()
+
+    def on_today_player_menu(self, _):
+        menu = wx.Menu()
+        menu.Append(0, "先前24小时以来", kind=wx.ITEM_CHECK)
+        menu.Append(1, "今天0点以来", kind=wx.ITEM_CHECK)
+        menu.Append(2, f"先前{self.custom_hours}小时以来 (自定义)", kind=wx.ITEM_CHECK)
+        menu.Append(3, f"今天{self.custom_start}点以来 (自定义)", kind=wx.ITEM_CHECK)
+        menu.Check(self.today_calc_way, True)
+        menu.Bind(wx.EVT_MENU, self.menu_cbk)
+        self.PopupMenu(menu)
+
+    def menu_cbk(self, event: wx.CommandEvent):
+        if event.GetId() == 2:
+            dialog = wx.NumberEntryDialog(self, "自定义小时-先前x小时以来", "请输入小时数", "小时数", 24, 1, 1000)
+            if dialog.ShowModal() == wx.ID_OK:
+                self.custom_hours = config.tcw_custom_hours = dialog.GetValue()
+            else:
+                return
+        elif event.GetId() == 3:
+            dialog = wx.NumberEntryDialog(self, "自定义小时-今天x点以来", "请输入小时", "小时", 4, 1, 24)
+            if dialog.ShowModal() == wx.ID_OK:
+                self.custom_start = config.tcw_custom_start = dialog.GetValue()
+            else:
+                return
+        self.today_calc_way = config.today_player_calc_way = event.GetId()
+        self.update_data()
 
     def active_players_cbk(self, _):
         dialog = DataShowDialog(self, self.activate_active_players, "玩家", "活跃玩家")
@@ -266,7 +296,15 @@ class PlayerOnlineOverviewPanel(wx.Panel):
         self.total_players.SetData(str(len(total_players)))
 
         day_end = datetime.now().timestamp()
-        day_start = (datetime.now() + timedelta(days=-1)).timestamp()
+        if self.today_calc_way == 0:
+            day_start = (datetime.now() - timedelta(days=1))
+        elif self.today_calc_way == 1:
+            day_start = datetime.combine(datetime.now().date(), datetime.min.time())
+        elif self.today_calc_way == 2:
+            day_start = datetime.now() - timedelta(hours=self.custom_hours)
+        else:
+            day_start = datetime.combine(datetime.now().date(), datetime.min.time().replace(hour=self.custom_start))
+        day_start = day_start.timestamp()
         today_players = set()
         total_online_time = 0
         for player, times in ranges:

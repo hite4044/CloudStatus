@@ -452,6 +452,8 @@ class LabeledData(wx.Panel):
 
         self.label_t.Bind(wx.EVT_LEFT_DCLICK, lambda e: self.ProcessEvent(e))
         self.data_t.Bind(wx.EVT_LEFT_DCLICK, lambda e: self.ProcessEvent(e))
+        self.label_t.Bind(wx.EVT_RIGHT_DOWN, lambda e: self.ProcessEvent(e))
+        self.data_t.Bind(wx.EVT_RIGHT_DOWN, lambda e: self.ProcessEvent(e))
 
     def SetLabel(self, label):
         self.label_t.SetLabel(label)
