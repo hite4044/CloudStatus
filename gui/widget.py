@@ -43,6 +43,23 @@ class StatusStatus:
     players_left: int = 0
 
 
+@dataclass
+class NumberEntryCfg:
+    type_fmt: type
+    prompt: str
+    default: int
+
+
+class FloatEntryCfg(NumberEntryCfg):
+    def __init__(self, prompt: str, default: float):
+        super().__init__(type_fmt=float, prompt=prompt, default=default)
+
+
+class IntEntryCfg(NumberEntryCfg):
+    def __init__(self, prompt: str, default: int):
+        super().__init__(type_fmt=int, prompt=prompt, default=default)
+
+
 def ft(size: int):
     if size not in font_cache:
         font_cache[size] = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
@@ -225,6 +242,12 @@ class NoTabNotebook(wx.Panel):
         self.Layout()
         self.Refresh()
         self.now_window.Refresh()
+
+    def remove_page(self, index: int):
+        self.panels[index].Destroy()
+        self.panels.pop(index)
+        if len(self.panels):
+            self.switch_page(0)
 
 
 class CenteredText(wx.StaticText):
@@ -506,3 +529,76 @@ class DataShowDialog(wx.Dialog):
         clip.Open()
         clip.SetData(wx.TextDataObject("\n".join(data)))
         clip.Close()
+
+
+class NumberInputDialog(wx.Dialog):
+    def __init__(self, parent: wx.Window, title: str, items: list[NumberEntryCfg]):
+        """
+        items: list of dicts with keys 'label' (str) and optional 'default' (int/float)
+        """
+        super().__init__(parent, title=title)
+
+        self.values = []
+        self.entries = []
+        self.items = items
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        input_area = wx.FlexGridSizer(len(items), 2, 5, 5)
+
+        for item in items:
+            label = TransparentCenteredText(self, label=item.prompt, x_center=False)
+            entry = wx.TextCtrl(self, value=str(item.default))
+            self.entries.append(entry)
+            input_area.Add(label, 0, wx.EXPAND)
+            input_area.Add(entry, 1, wx.EXPAND)
+            entry.Bind(wx.EVT_TEXT, self.on_text_changed)
+            entry.Bind(wx.EVT_SET_FOCUS, self.on_text_changed)
+
+        sizer.Add(input_area, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+
+        # 错误提示区域
+        self.errorLabel = TransparentCenteredText(self, label="")
+        sizer.Add(self.errorLabel, 0, wx.ALL | wx.EXPAND, 5)
+
+        # 按钮区域
+        btn_sizer = wx.StdDialogButtonSizer()
+        ok_btn = wx.Button(self, wx.ID_OK)
+        ok_btn.SetDefault()
+        btn_sizer.AddButton(ok_btn)
+        cancel_btn = wx.Button(self, wx.ID_CANCEL)
+        btn_sizer.AddButton(cancel_btn)
+        btn_sizer.Realize()
+
+        sizer.Add(btn_sizer, 0, wx.ALL | wx.ALIGN_RIGHT, 10)
+
+        self.SetSizer(sizer)
+        sizer.Fit(self)
+        self.Center()
+
+        self.Bind(wx.EVT_BUTTON, self.on_ok, id=wx.ID_OK)
+
+    def on_text_changed(self, event: wx.Event):
+        self.errorLabel.SetLabel("")
+        self.errorLabel.Hide()
+        event.Skip()
+
+    def on_ok(self, _):
+        for i, entry in enumerate(self.entries):
+            value = entry.GetValue().strip()
+            if not value:
+                self.errorLabel.SetLabel(f"输入框是空的")
+                break
+            try:
+                num = self.items[i].type_fmt(value)
+                self.values.append(num)
+            except ValueError:
+                self.errorLabel.SetLabel(f"'{value}' 不是有效数字")
+                break
+        else:
+            self.EndModal(wx.ID_OK)
+            return
+        self.errorLabel.SetForegroundColour(wx.RED)
+        self.Layout()
+
+    def get_values(self):
+        return self.values

@@ -1,4 +1,7 @@
+from copy import copy
 from threading import Thread
+
+import wx
 
 from gui.widget import *
 from lib.common_data import common_data
@@ -37,12 +40,14 @@ class TimeOnlinePlotUnit(Enum):
     DAY = 0
     WEEK = 1
     MONTH = 2
+    CUSTOM = 3
 
 
 PLOT_PREDEFINE = {
     TimeOnlinePlotUnit.DAY: (timedelta(hours=1), timedelta(days=1), 24),
     TimeOnlinePlotUnit.WEEK: (timedelta(days=1), timedelta(weeks=1), 7),
     TimeOnlinePlotUnit.MONTH: (timedelta(weeks=1), timedelta(days=30), 5),
+    TimeOnlinePlotUnit.CUSTOM: (timedelta(days=1), timedelta(days=1), 1),
 }
 
 
@@ -255,7 +260,7 @@ class PlayerTimeOnlinePlot(DataPlot):
             return f"{dt_obj.strftime('%m-%d')}"
 
     def load_data(self, player: str, unit: TimeOnlinePlotUnit) -> tuple[list[float], list[float]]:
-        step_delta, total, count = PLOT_PREDEFINE[unit]
+        step_delta, total, count = copy(PLOT_PREDEFINE[unit])
         step_delta = step_delta.seconds + step_delta.days * 24 * 60 * 60
         end_dt = datetime.now()
         start_dt = end_dt - total
@@ -293,9 +298,10 @@ class PlayerTimeOnlinePlot(DataPlot):
 class PlayerTimeOnlinePlotGroup(wx.Panel):
     def __init__(self, parent: wx.Window, player: str):
         super().__init__(parent, style=wx.TRANSPARENT_WINDOW)
+        self.player = player
         self.plots: list[PlayerTimeOnlinePlot] = []
         self.title = CenteredText(self, label=f"在线时长统计", x_center=False)
-        self.switch_cb = wx.Choice(self, choices=["最近一天", "最近一周", "最近一个月"])
+        self.switch_cb = wx.Choice(self, choices=["最近一天", "最近一周", "最近一个月", "自定义"])
         self.notebook = NoTabNotebook(self)
         self.title.SetFont(ft(20))
         title_bar = wx.BoxSizer(wx.HORIZONTAL)
@@ -307,7 +313,7 @@ class PlayerTimeOnlinePlotGroup(wx.Panel):
         sizer.Add(self.notebook, 1, wx.EXPAND)
         self.SetSizer(sizer)
 
-        for unit in PLOT_PREDEFINE.keys():
+        for unit in [TimeOnlinePlotUnit.DAY, TimeOnlinePlotUnit.WEEK, TimeOnlinePlotUnit.MONTH]:
             plot = PlayerTimeOnlinePlot(self.notebook, player, unit)
             self.plots.append(plot)
             self.notebook.add_page(plot)
@@ -319,6 +325,19 @@ class PlayerTimeOnlinePlotGroup(wx.Panel):
 
     def on_switch_page(self, _):
         selection = self.switch_cb.GetSelection()
+        if selection == 3:
+            dialog = NumberInputDialog(self, "输入时间范围", [IntEntryCfg("天数:", 10), IntEntryCfg("计算间隔(天)", 1)])
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            days, interval = dialog.get_values()
+            count = int(days / interval) + 1 if float(int(days / interval)) != days / interval else 0
+            PLOT_PREDEFINE[TimeOnlinePlotUnit.CUSTOM] = (timedelta(days=interval), timedelta(days=days), count)
+            plot = PlayerTimeOnlinePlot(self.notebook, self.player, TimeOnlinePlotUnit.CUSTOM)
+            if len(self.plots) > 3:
+                self.notebook.remove_page(3)
+                del self.plots[3]
+            self.plots.append(plot)
+            self.notebook.add_page(plot)
         self.notebook.switch_page(selection)
         self.GetParent().Refresh()
 
