@@ -241,6 +241,8 @@ class ConfigLinePanel(wx.Panel):
         line_sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
         group_sizer = wx.FlexGridSizer(4, 1, 5, 5)
         self.SetFont(ft(11))
+        line_sizer.AddSpacer(5)
+        line_sizer.AddSpacer(0)
 
         def load_config(t_sizer: wx.Sizer, data: ConfigData | ConfigGroup):
             if isinstance(data, ConfigGroup):
