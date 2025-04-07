@@ -1,10 +1,12 @@
 from copy import copy
+# noinspection PyUnresolvedReferences
+from dataclasses import dataclass
 from threading import Thread
-
-import wx
+from typing import cast
 
 from gui.widget import *
 from lib.common_data import common_data
+from lib.log import logger
 
 XLIM_WIDTH = 35
 YLIM_WIDTH = 55
@@ -34,6 +36,12 @@ def fmt_time_unit(seconds: float, day: bool = False, hour: bool = False, minute:
     if minute:
         text += f"{time_tuple[2]}m"
     return text
+
+
+@dataclass
+class EyeResampleRule:
+    eye_pos: tuple[int, int]
+    resample_points: list[tuple[int, int]]
 
 
 class TimeOnlinePlotUnit(Enum):
@@ -420,6 +428,60 @@ class PlayerDayOnlinePlot(wx.Window):
                              int(width / len(self.datas)) - 2, int(height * self.datas[i]))
 
 
+def get_color_similarity(color1: tuple[int, int, int], color2: tuple[int, int, int]):
+    """计算颜色相似度, 值越大相似度越小"""
+    return sum(abs(c1 - c2) for c1, c2 in zip(color1, color2)) / 3 / 255
+
+
+def get_eye_color(head: Image.Image):
+    """对预设的可能得眼睛位置的周围像素计算相似度, 取相似度和最大的一组眼睛位置"""
+    pt_size = head.height / 8
+
+    def get_pixel(x_pos: int, y_pos: int):
+        return head.getpixel((int(x_pos * pt_size + pt_size / 2), int(y_pos * pt_size + pt_size / 2)))[:3]
+
+    rules: list[tuple[float, list[EyeResampleRule]]] = [
+        (1.7, [EyeResampleRule((2, 5), [(1, 5), (3, 5)]),
+               EyeResampleRule((5, 5), [(4, 5), (6, 5)])]),
+        (1.4, [EyeResampleRule((2, 6), [(1, 6), (3, 6), (2, 7)]),
+               EyeResampleRule((5, 6), [(4, 6), (6, 6), (5, 7)])]),
+        (1.0, [EyeResampleRule((2, 4), [(1, 4), (3, 4)]),
+               EyeResampleRule((5, 4), [(4, 4), (6, 4)])]),
+        (1.0, [EyeResampleRule((1, 5), [(0, 5), (2, 5), (1, 6)]),
+               EyeResampleRule((6, 5), [(5, 5), (7, 5), (6, 6)])]),
+    ]
+
+    results: dict[float, tuple[tuple[int, int, int], tuple[int, int, int]]] = {}
+    for widget, rule_group in rules:
+        eye_colors = []
+        eys_similarities = []
+        for eye_rule in rule_group:
+            near_similarities = []
+            eye_color = cast(tuple[int, int, int], get_pixel(*eye_rule.eye_pos))
+            # 添加调试输出：当前处理的坐标和原始颜色值
+            logger.debug(f"|- 处理眼睛 {eye_rule.eye_pos} - 基础颜色: {eye_color}")
+            for near_point in eye_rule.resample_points:
+                resample_color = cast(tuple[int, int, int], get_pixel(*near_point))
+                sim = get_color_similarity(eye_color, resample_color)
+                logger.debug(f"   |- 采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
+                near_similarities.append(sim)
+            # 添加调试输出：匹配结果
+            logger.debug(f"|- 眼睛采样点 {eye_rule.eye_pos} - 最大相似度: {max(near_similarities)}")
+            if len(set(near_similarities)) == 1:
+                near_similarities.append(max(near_similarities) * 1.5)
+            eye_colors.append(eye_color)
+            eys_similarities.append(max(near_similarities))
+        assert len(eye_colors) == 2
+        final_sim = max(eys_similarities) * widget
+        results[final_sim] = cast(tuple[tuple[int, int, int], tuple[int, int, int]], tuple(eye_colors))
+        # 添加调试输出：记录当前结果
+        logger.debug(f"# 本组眼睛颜色: {tuple(eye_colors)} - 最终相似度: {final_sim}")
+
+    # 添加最终结果的调试输出
+    logger.debug(f"最终选择颜色: {results[max(results.keys())]}")
+    return results[max(results.keys())]
+
+
 class PlayerOnlineWin(wx.Frame):
     """
     一个查看玩家逐小时在线几率的窗口
@@ -469,14 +531,15 @@ class PlayerOnlineWin(wx.Frame):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
         way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
         head = get_player_head(self.player, way, 100)
-        left_eye = head.getpixel((35, 85))[:3]
-        right_eye = head.getpixel((73, 85))[:3]
+        left_eye, right_eye = get_eye_color(head)
+        color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
 
-        if left_eye == right_eye:
-            color_left = color_right = EasyColor(*right_eye)
-        else:
-            color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
-        self.bg_binder.set_color(color_left.set_luminance(0.5).wxcolor, color_right.set_luminance(0.7).wxcolor)
+        # 总的来说就是亮度向0.8移动一半
+        target = 0.8
+        left_lum = color_left.color.get_luminance() * 0.5 + target * 0.5
+        right_lum = color_right.color.get_luminance() * 0.5 + target * 0.5
+        self.bg_binder.set_color(color_left.set_luminance(left_lum).wxcolor,
+                                 color_right.set_luminance(right_lum).wxcolor)
         self.Refresh()
 
     def load_head(self, head: wx.Image):
