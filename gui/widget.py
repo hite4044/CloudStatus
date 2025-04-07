@@ -404,6 +404,7 @@ class ToolTip(wx.Frame):
         self.SetFont(parent.GetFont())
         self.parent = parent
         self.label = wx.StaticText(self, label=text, pos=(10, 0))
+        self.now_tip = None
         parent.Bind(wx.EVT_WINDOW_DESTROY, self.on_parent_destroy)
         parent.Bind(wx.EVT_MOTION, self.on_mouse_move)
         self.Bind(wx.EVT_MOTION, self.on_mouse_move)
@@ -434,18 +435,18 @@ class ToolTip(wx.Frame):
             return
         else:
             self.Show()
-        self.Freeze()
-        self.label.SetLabel(tip)
-        dc = wx.ClientDC(self)
-        dc.SetFont(self.parent.GetFont())
-        w, h = dc.GetMultiLineTextExtent(tip)
-        w += 10
-        h += 4
-        self.SetSize(wx.Size(w, h))
-        self.label.SetPosition(wx.Point(3, 0))
+        if self.now_tip != tip:
+            self.now_tip = tip
+            self.label.SetLabel(tip)
+            dc = wx.ClientDC(self)
+            dc.SetFont(self.parent.GetFont())
+            w, h = dc.GetMultiLineTextExtent(tip)
+            w += 10
+            h += 4
+            self.SetSize(wx.Size(w, h))
+            self.label.SetPosition(wx.Point(3, 0))
         mouse = wx.GetMousePosition()
         self.SetPosition((mouse[0], mouse[1] - self.GetSize()[1] - 5))
-        self.Thaw()
 
     def on_parent_destroy(self, _):
         self.timer.Stop()
