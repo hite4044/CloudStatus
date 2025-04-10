@@ -36,6 +36,63 @@ class UniqueIntFormatter(Formatter):
         return [str(v)[:-2] if v in unique_ints else '' for v in values]
 
 
+class BiDict:
+    def __init__(self):
+        self._forward = dict()  # int -> str
+        self._reverse = dict()  # str -> int
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._forward[key]
+        elif isinstance(key, str):
+            return self._reverse[key]
+        else:
+            raise TypeError("Keys must be int or str")
+
+    def __setitem__(self, key, value):
+        if not isinstance(key, int):
+            raise TypeError("Keys must be integers")
+        if not isinstance(value, str):
+            raise TypeError("Values must be strings")
+        # 移除旧的映射（如果存在）
+        if key in self._forward:
+            old_value = self._forward[key]
+            del self._reverse[old_value]
+        # 检查新值是否重复
+        if value in self._reverse:
+            raise ValueError(f"Duplicate value '{value}' found")
+        # 更新双向映射
+        self._forward[key] = value
+        self._reverse[value] = key
+
+    def __delitem__(self, key):
+        if isinstance(key, int):
+            value = self._forward.pop(key)
+            del self._reverse[value]
+        elif isinstance(key, str):
+            original_key = self._reverse.pop(key)
+            del self._forward[original_key]
+        else:
+            raise TypeError("Key must be int or str")
+
+    def __len__(self):
+        return len(self._forward)
+
+    def __iter__(self):
+        return iter(self._forward)
+
+    def values(self):
+        return self._forward.values()
+
+    def clear(self):
+        self._forward.clear()
+        self._reverse.clear()
+
+    def update(self, other):
+        for key, value in iter(other):
+            self[key] = value
+
+
 class StatusPanel(wx.SplitterWindow):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
@@ -67,16 +124,20 @@ class StatusPanel(wx.SplitterWindow):
         self.SetSashGravity(0.65)
         self.SetMinimumPaneSize(5)
         self.Bind(EVT_FILTER_CHANGE, self.on_filter_change)
+        self.Bind(EVT_JUMP_TO_POINT, self.on_jump_to_point)
 
     def on_filter_change(self, event: FilterChangeEvent):
         self.plot.update_filter(event.filter)
+
+    def on_jump_to_point(self, event: JumpToPointEvent):
+        self.cap_list.jump_to_point(event.point)
 
 
 class CapList(wx.Panel):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
         self.data_manager = common_data.data_manager
-        self.point_id_mapping: dict[int, str] = {}
+        self.point_id_mapping = BiDict()
         sizer = wx.BoxSizer(wx.VERTICAL)
         title = CenteredText(self, label="数据点列表")
         title.SetFont(ft(14))
@@ -97,10 +158,18 @@ class CapList(wx.Panel):
         self.SetAcceleratorTable(
             wx.AcceleratorTable([wx.AcceleratorEntry(wx.ACCEL_CTRL, ord("A"), ID_SELECT_ALL)])
         )
-        self.line_height = 31
+        self.line_height = self.get_line_height()
         self.cap_list.SetItemCount(10000)
         self.cap_list.OnGetItemText = self.OnGetItemText
         self.cap_list.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_item_menu)
+
+    def get_line_height(self) -> int:
+        lc = wx.ListCtrl(self, wx.LC_REPORT)
+        lc.InsertColumn(0, "Test")
+        lc.InsertItem(0, "Text")
+        height = lc.GetItemRect(0, wx.LIST_RECT_LABEL).height
+        lc.Destroy()
+        return height
 
     def OnGetItemText(self, item: int, col: int):
         pt = self.data_manager.get_point(self.point_id_mapping[item])
@@ -122,6 +191,7 @@ class CapList(wx.Panel):
         if item >= 0:
             def get_data(column: int):
                 return self.cap_list.GetItem(item, column).GetText()
+
             def copy_data(column: int):
                 wx.TheClipboard.SetData(wx.TextDataObject(get_data(column)))
 
@@ -159,7 +229,7 @@ class CapList(wx.Panel):
     def delete_item(self, item: int):
         point: ServerPoint = self.data_manager.get_point(self.point_id_mapping[item])
         self.data_manager.remove_point(point)
-        self.point_id_mapping.pop(item)
+        del self.point_id_mapping[item]
         values = list(self.point_id_mapping.values())
         self.point_id_mapping.clear()
         self.point_id_mapping.update(enumerate(values))
@@ -191,6 +261,12 @@ class CapList(wx.Panel):
     def on_select_all(self, _):
         for i in range(self.cap_list.GetItemCount()):
             self.cap_list.Select(i)
+
+    def jump_to_point(self, point: ServerPoint):
+        show_lines = self.cap_list.GetSize()[1] // self.line_height
+        line = self.point_id_mapping[point.id_]
+        self.cap_list.Select(line)
+        self.cap_list.ScrollList(0, (line - show_lines // 2 - self.cap_list.GetScrollPos(wx.VERTICAL)) * self.line_height)
 
 
 class DataJumper(wx.Panel):
@@ -279,6 +355,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.start_drag: int = 0  # 拖动起始位置
         self.start_offset: int = 0  # 拖动开始时候的偏移量
         self.last_point_time = 0  # 上一个数据点的时间
+        self.active_mouse_point: ServerPoint | None = None
         self.draw_call = wx.CallLater(50, self.draw_plot)
         self.draw_plot()
         self.Bind(wx.EVT_MOUSE_EVENTS, self.control_plot)
@@ -300,7 +377,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
         exact_time = (max(times) - min_time) * percent + min_time
         index = bisect_right(times, exact_time)
         closest_time = times[index - 1]
-        point = self.showing_datas[closest_time]
+        point = self.active_mouse_point = self.showing_datas[closest_time]
 
         time_str = datetime.fromtimestamp(closest_time).strftime('%Y-%m-%d %H:%M:%S')
         players = ""
@@ -343,6 +420,11 @@ class Plot(wxagg.FigureCanvasWxAgg):
         elif event.LeftUp():
             self.start_drag = self.start_offset = 0
             self.on_mouse_move(event.GetX(), event.GetY())
+        elif event.RightDown():
+            if self.active_mouse_point:
+                event = JumpToPointEvent(self.active_mouse_point)
+                event.SetEventObject(self)
+                self.ProcessEvent(event)
         elif event.GetWheelRotation():
             last_scale = self.scale + 1 - 1
             if event.GetWheelRotation() > 0:

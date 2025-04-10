@@ -25,6 +25,8 @@ csEVT_ASK_TO_ADD_PLAYER = wx.NewEventType()
 EVT_ASK_TO_ADD_PLAYER = wx.PyEventBinder(csEVT_ASK_TO_ADD_PLAYER)
 csREMOVE_PLAYER_OVERVIEW = wx.NewEventType()
 EVT_REMOVE_PLAYER_OVERVIEW = wx.PyEventBinder(csREMOVE_PLAYER_OVERVIEW)
+csJUMP_TO_POINT = wx.NewEventType()
+EVT_JUMP_TO_POINT = wx.PyEventBinder(csJUMP_TO_POINT)
 
 
 class RemovePlayerOverviewEvent(wx.PyCommandEvent):
@@ -76,3 +78,8 @@ class AddPlayersOverviewEvent(wx.PyCommandEvent):
 class ApplyValueEvent(wx.PyCommandEvent):
     def __init__(self):
         wx.PyCommandEvent.__init__(self, csEVT_APPLY_VALUE, wx.ID_ANY)
+
+class JumpToPointEvent(wx.PyCommandEvent):
+    def __init__(self, point: ServerPoint):
+        wx.PyCommandEvent.__init__(self, csJUMP_TO_POINT, wx.ID_ANY)
+        self.point = point
