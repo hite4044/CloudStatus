@@ -122,18 +122,28 @@ class EasyColor:
         return self
 
     @property
+    def lum(self) -> float:
+        return self.color.get_luminance()
+
+    @lum.setter
+    def lum(self, value: float) -> None:
+        self.color.set_luminance(value)
+
+    @property
+    def sat(self) -> float:
+        return self.color.get_saturation()
+
+    @sat.setter
+    def sat(self, value: float) -> None:
+        self.color.set_saturation(value)
+
+    @property
     def wxcolor(self) -> wx.Colour:
-        return wx.Colour(self.get_rgb())
+        return wx.Colour(self.rgb)
 
     @property
     def rgb(self) -> list[int]:
         return [int(255 * c) for c in self.color.rgb]
-
-    def get_rgb(self):
-        return self.rgb
-
-    def get_wxcolor(self) -> wx.Colour:
-        return self.wxcolor
 
 
 class GradientBgBinder:

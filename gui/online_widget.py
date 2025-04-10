@@ -430,7 +430,16 @@ class PlayerDayOnlinePlot(wx.Window):
 
 def get_color_similarity(color1: tuple[int, int, int], color2: tuple[int, int, int]):
     """计算颜色相似度, 值越大相似度越小"""
-    return sum(abs(c1 - c2) for c1, c2 in zip(color1, color2)) / 3 / 255
+    sim = sum(abs(c1 - c2) for c1, c2 in zip(color1, color2)) / 3 / 255
+    dark_c1 = color1[0] * 0.299 + color1[1] * 0.587 + color1[2] * 0.114
+    if dark_c1 > 180:
+        sim /= 2
+    else:
+        dark_c2 = color2[0] * 0.299 + color2[1] * 0.587 + color2[2] * 0.114
+        if dark_c2 < 160:
+            sim *= 2
+    sim = min(sim, 1)
+    return sim
 
 
 def get_eye_color(head: Image.Image):
@@ -441,13 +450,13 @@ def get_eye_color(head: Image.Image):
         return head.getpixel((int(x_pos * pt_size + pt_size / 2), int(y_pos * pt_size + pt_size / 2)))[:3]
 
     rules: list[tuple[float, list[EyeResampleRule]]] = [
-        (1.7, [EyeResampleRule((2, 5), [(1, 5), (3, 5)]),
-               EyeResampleRule((5, 5), [(4, 5), (6, 5)])]),
-        (1.4, [EyeResampleRule((2, 6), [(1, 6), (3, 6), (2, 7)]),
+        (1.5, [EyeResampleRule((2, 5), [(1, 5), (1, 6)]),
+               EyeResampleRule((5, 5), [(6, 5), (6, 6)])]),
+        (2.5, [EyeResampleRule((2, 6), [(1, 6), (3, 6), (2, 7)]),
                EyeResampleRule((5, 6), [(4, 6), (6, 6), (5, 7)])]),
-        (1.0, [EyeResampleRule((2, 4), [(1, 4), (3, 4)]),
+        (0.5, [EyeResampleRule((2, 4), [(1, 4), (3, 4)]),
                EyeResampleRule((5, 4), [(4, 4), (6, 4)])]),
-        (1.0, [EyeResampleRule((1, 5), [(0, 5), (2, 5), (1, 6)]),
+        (0.8, [EyeResampleRule((1, 5), [(0, 5), (2, 5), (1, 6)]),
                EyeResampleRule((6, 5), [(5, 5), (7, 5), (6, 6)])]),
     ]
 
@@ -534,12 +543,15 @@ class PlayerOnlineWin(wx.Frame):
         left_eye, right_eye = get_eye_color(head)
         color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
 
-        # 总的来说就是亮度向0.8移动一半
-        target = 0.8
-        left_lum = color_left.color.get_luminance() * 0.5 + target * 0.5
-        right_lum = color_right.color.get_luminance() * 0.5 + target * 0.5
-        self.bg_binder.set_color(color_left.set_luminance(left_lum).wxcolor,
-                                 color_right.set_luminance(right_lum).wxcolor)
+        # 亮度向0.8移动30%, 饱和度向0.5移动75%
+        lum_target = 0.8
+        color_left.lum = color_left.lum * 0.7 + lum_target * 0.3
+        color_right.lum = color_right.lum * 0.7 + lum_target * 0.3
+        sat_target = 0.5
+        color_left.sat = color_left.sat * 0.25 + sat_target * 0.75
+        color_right.sat = color_right.sat * 0.25 + sat_target * 0.75
+
+        self.bg_binder.set_color(color_left.wxcolor, color_right.wxcolor)
         self.Refresh()
 
     def load_head(self, head: wx.Image):
