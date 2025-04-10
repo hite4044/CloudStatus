@@ -3,29 +3,42 @@
 提供 玩家在线数据 查看的GUI定义文件
 """
 from datetime import datetime, timedelta
-from threading import Thread
+from threading import Thread, Lock
 from time import perf_counter, strftime, localtime
 
 import wx
+from PIL import Image
 
 from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO, AddPlayersOverviewEvent
-from gui.widget import TimeSelector, ft, string_fmt_time
 from gui.online_widget import PlayerOnlineWin
+from gui.widget import TimeSelector, ft, string_fmt_time, PilImg2WxImg
 from lib.common_data import common_data
 from lib.config import config
 from lib.data import Player
 from lib.log import logger
+from lib.skin_loader import get_player_head, SkinLoadWay
 
+COL_PLAYER_HEAD = 0
+COL_RANK = 1
+COL_NAME = COL_RANK + 1
+COL_TOTAL_ONLINE = COL_NAME + 1
+COL_TODAY_ONLINE = COL_TOTAL_ONLINE + 1
+COL_AVG_ONLINE_DAY = COL_TODAY_ONLINE + 1
+COL_ONLINE_TIMES = COL_AVG_ONLINE_DAY + 1
+COL_AVG_ONLINE_SESSION = COL_ONLINE_TIMES + 1
+COL_MAX_ONLINE_SESSION = COL_AVG_ONLINE_SESSION + 1
+COL_LAST_ONLINE = COL_MAX_ONLINE_SESSION + 1
+COL_JOIN_TIME = COL_LAST_ONLINE + 1
 players_sort_map = {
-    1: "x.name",
-    2: "x.total_online_time",
-    3: "x.today_online_time",
-    4: "x.avg_online_per_day",
-    5: "len(x.online_times)",
-    6: "x.avg_online_per_session",
-    7: "x.max_online_per_session",
-    8: "x.last_offline_time",
-    9: "x.join_server_time"
+    COL_NAME: "x.name",
+    COL_TOTAL_ONLINE: "x.total_online_time",
+    COL_TODAY_ONLINE: "x.today_online_time",
+    COL_AVG_ONLINE_DAY: "x.avg_online_per_day",
+    COL_ONLINE_TIMES: "len(x.online_times)",
+    COL_AVG_ONLINE_SESSION: "x.avg_online_per_session",
+    COL_MAX_ONLINE_SESSION: "x.max_online_per_session",
+    COL_LAST_ONLINE: "x.last_offline_time",
+    COL_JOIN_TIME: "x.join_server_time"
 }
 
 
@@ -176,7 +189,8 @@ class PlayerOnlinePanel(wx.Panel):
 
         self.data_sizer = wx.FlexGridSizer(0, 2, 5, 5)
         self.data_panel.SetFont(ft(36))
-        self.data_sizer.Add(wx.StaticText(self.data_panel, label="这里找不到数据 /_ \\ \n你可以试试先在左边分析下"), wx.EXPAND)
+        self.data_sizer.Add(wx.StaticText(self.data_panel, label="这里找不到数据 /_ \\ \n你可以试试先在左边分析下"),
+                            wx.EXPAND)
         self.data_panel.SetFont(ft(12))
         self.data_panel.SetSizer(self.data_sizer)
 
@@ -252,6 +266,62 @@ class PlayerPanel(wx.Notebook):
                                     lambda e: self.player_online_panel.update_data(e.players_info))
 
 
+class PlayerHeadList(wx.ImageList):
+    def __init__(self):
+        super().__init__(16, 16)
+        self.default = self.load_default()
+        self.Add(self.default)
+        self.head_map: dict[str, int] = {}
+        self.map_lock = Lock()
+        self.tasks: list[tuple[str, bool]] = []
+        self.loader_thread = Thread(target=self.head_load_thread)
+        self.current_index = 1
+
+    @staticmethod
+    def load_default() -> wx.Bitmap:
+        pil_image = Image.open("assets/default_skin/error_head_16px.png")
+        wx_image = PilImg2WxImg(pil_image)
+        return wx_image.ConvertToBitmap()
+
+    def clear(self):
+        self.RemoveAll()
+        self.Add(self.default)
+        self.head_map.clear()
+        self.current_index = 1
+
+    def get_id_by_name(self, name: str):
+        return self.head_map.get(name)
+
+    def append(self, name: str):
+        wx.CallAfter(self.Add, self.default)
+        self.head_map[name] = self.current_index
+        self.current_index += 1
+        self.add_task(name)
+
+    def add_task(self, name: str, use_cache: bool = True):
+        with self.map_lock:
+            self.tasks.append((name, use_cache))
+            if not self.loader_thread.is_alive():
+                self.loader_thread = Thread(target=self.head_load_thread)
+                self.loader_thread.start()
+
+    def head_load_thread(self):
+        while True:
+            with self.map_lock:
+                if not self.tasks:
+                    return
+                name, use_cache = self.tasks.pop(0)
+            way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
+            pil_image = get_player_head(name, way, 16, use_cache, 1.0)
+            self[name] = PilImg2WxImg(pil_image).ConvertToBitmap()
+
+    def __getitem__(self, name: str):
+        return self.GetBitmap(self.head_map[name])
+
+    def __setitem__(self, name: str, value: wx.Bitmap):
+        self.Replace(self.head_map[name], value)
+
+
 class PlayerInfoPanel(wx.Panel):
     """玩家在线信息面板"""
 
@@ -261,7 +331,7 @@ class PlayerInfoPanel(wx.Panel):
         day_end = timedelta(days=1) + day_start
         self.active_filter = OnlineTimeFilter(day_start.timestamp(), day_end.timestamp())
         self.data_manager = common_data.data_manager  # 获取数据管理器用于数据操作
-        self.sort_column = 1  # 设置默认排序列为第1列
+        self.sort_column = COL_NAME  # 设置默认排序列为玩家名列
         self.sort_ascending = False  # 降序排列
         self.activate_datas = {}  # 初始化激活数据字典
 
@@ -280,24 +350,27 @@ class PlayerInfoPanel(wx.Panel):
         self.start_analyze_btn = wx.Button(self, label="开始分析")
         self.analyze_gauge = wx.Gauge(self, range=100, style=wx.GA_SMOOTH | wx.GA_TEXT)
 
+        self.image_list = PlayerHeadList()
         self.player_info_lc = wx.ListCtrl(self, style=wx.LC_REPORT)
-        column_map = [
-            ("排名", 50),
-            ("玩家名", 250),
-            ("总在线时长", 150),
-            ("今天在线时长", 150),
-            ("天平均在线", 150),
-            ("在线次数", 100),
-            ("平均每次在线", 150),
-            ("最长单次在线", 150),
-            ("最近在线", 200),
-            ("进服时间", 200)
-        ]
-        for i, (name, width) in enumerate(column_map):
-            if i == 1:
-                self.player_info_lc.InsertColumn(i + 1, name, width=width)
+        column_map = {
+            COL_PLAYER_HEAD: ("", 24),
+            COL_RANK: ("排名", 50),
+            COL_NAME: ("玩家名", 250),
+            COL_TOTAL_ONLINE: ("总在线时长", 150),
+            COL_TODAY_ONLINE: ("今天在线时长", 150),
+            COL_AVG_ONLINE_DAY: ("天平均在线", 150),
+            COL_ONLINE_TIMES: ("在线次数", 100),
+            COL_AVG_ONLINE_SESSION: ("平均每次在线", 150),
+            COL_MAX_ONLINE_SESSION: ("最长单次在线", 150),
+            COL_LAST_ONLINE: ("最近在线", 200),
+            COL_JOIN_TIME: ("进服时间", 200)
+        }
+        for col, (name, width) in column_map.items():
+            if col == COL_NAME:
+                self.player_info_lc.InsertColumn(col + 1, name, width=width)
             else:
-                self.player_info_lc.InsertColumn(i + 1, name, width=width, format=wx.LIST_FORMAT_CENTER)
+                self.player_info_lc.InsertColumn(col + 1, name, width=width, format=wx.LIST_FORMAT_CENTER)
+        self.player_info_lc.AssignImageList(self.image_list, wx.IMAGE_LIST_SMALL)
         self.start_analyze_btn.SetMaxSize((-1, 50))
         self.start_analyze_btn.SetMinSize((-1, 50))
         self.analyze_gauge.SetMaxSize((-1, 30))
@@ -332,15 +405,15 @@ class PlayerInfoPanel(wx.Panel):
             return self.player_info_lc.GetItemText(line, column)
 
         def copy_detail():
-            text = f"玩家: {get_data(first, 1)}\n"
-            text += f"总在线时长: {get_data(first, 2)}\n"
-            text += f"今天在线时长: {get_data(first, 3)}\n"
-            text += f"天平均在线: {get_data(first, 4)}\n"
-            text += f"在线次数: {get_data(first, 5)}\n"
-            text += f"平均每次在线: {get_data(first, 6)}\n"
-            text += f"最长单次在线: {get_data(first, 7)}\n"
-            text += f"最近在线: {get_data(first, 8)}\n"
-            text += f"进服时间: {get_data(first, 9)}"
+            text = f"玩家: {get_data(first, COL_NAME)}\n"
+            text += f"总在线时长: {get_data(first, COL_TOTAL_ONLINE)}\n"
+            text += f"今天在线时长: {get_data(first, COL_TODAY_ONLINE)}\n"
+            text += f"天平均在线: {get_data(first, COL_AVG_ONLINE_DAY)}\n"
+            text += f"在线次数: {get_data(first, COL_ONLINE_TIMES)}\n"
+            text += f"平均每次在线: {get_data(first, COL_AVG_ONLINE_SESSION)}\n"
+            text += f"最长单次在线: {get_data(first, COL_MAX_ONLINE_SESSION)}\n"
+            text += f"最近在线: {get_data(first, COL_LAST_ONLINE)}\n"
+            text += f"进服时间: {get_data(first, COL_JOIN_TIME)}"
             wx.TheClipboard.SetData(wx.TextDataObject(text))
 
         menu = wx.Menu()
@@ -349,14 +422,21 @@ class PlayerInfoPanel(wx.Panel):
             menu.Bind(wx.EVT_MENU, lambda _: copy_detail(), id=1)
             menu.Append(2, "查看逐小时在线分析")
             menu.Bind(wx.EVT_MENU, lambda _: self.open_hour_online_win(get_data(first, 1)), id=2)
-            menu.Append(3, f"添加[{get_data(first, 1)}]至预览")
+            menu.Append(3, f"添加[{get_data(first, COL_NAME)}]至预览")
+            menu.Append(4, f"刷新头像")
         else:
             menu.Append(3, f"添加[{len(selections)}]个玩家至预览")
+            menu.Append(4, f"刷新[{len(selections)}]个玩家的头像")
         menu.Bind(wx.EVT_MENU, lambda _: self.add_players_to_preview(selections), id=3)
+        menu.Bind(wx.EVT_MENU, lambda _: self.refresh_player_head(selections), id=4)
         self.PopupMenu(menu)
 
+    def refresh_player_head(self, selections: list[int]):
+        for name in [self.player_info_lc.GetItemText(i, COL_NAME) for i in selections]:
+            self.image_list.add_task(name, False)
+
     def add_players_to_preview(self, selections: list[int]):
-        event = AddPlayersOverviewEvent([self.player_info_lc.GetItemText(i, 1) for i in selections])
+        event = AddPlayersOverviewEvent([self.player_info_lc.GetItemText(i, COL_NAME) for i in selections])
         event.SetEventObject(self)
         self.ProcessEvent(event)
 
@@ -395,6 +475,9 @@ class PlayerInfoPanel(wx.Panel):
         event = PlayerOnlineInfoEvent({name: info.online_times for name, info in players_info.items()})
         event.SetEventObject(self)
         self.ProcessEvent(event)
+        self.image_list.clear()
+        for name in players_info.keys():
+            self.image_list.append(name)
         self.populate_list(sorted_players_info)
 
     def populate_list(self, players_info: dict[str, PlayerOnlineInfo]):
@@ -408,16 +491,24 @@ class PlayerInfoPanel(wx.Panel):
     def add_player(self, player: PlayerOnlineInfo, rank: int):
         """添加一组信息进入列表"""
         line = self.player_info_lc.GetItemCount()
-        self.player_info_lc.InsertItem(line, str(rank))
-        self.player_info_lc.SetItem(line, 1, player.name)
-        self.player_info_lc.SetItem(line, 2, string_fmt_time(player.total_online_time))
-        self.player_info_lc.SetItem(line, 3, string_fmt_time(player.today_online_time))
-        self.player_info_lc.SetItem(line, 4, string_fmt_time(player.avg_online_per_day))
-        self.player_info_lc.SetItem(line, 5, str(len(player.online_times)))
-        self.player_info_lc.SetItem(line, 6, string_fmt_time(player.avg_online_per_session))
-        self.player_info_lc.SetItem(line, 7, string_fmt_time(player.max_online_per_session))
-        self.player_info_lc.SetItem(line, 8, strftime("%y-%m-%d %H:%M:%S", localtime(player.last_offline_time)))
-        self.player_info_lc.SetItem(line, 9, strftime("%y-%m-%d %H:%M:%S", localtime(player.join_server_time)))
+        data = {
+            COL_PLAYER_HEAD: self.image_list.head_map[player.name],
+            COL_RANK: str(rank),
+            COL_NAME: player.name,
+            COL_TOTAL_ONLINE: string_fmt_time(player.total_online_time),
+            COL_TODAY_ONLINE: string_fmt_time(player.today_online_time),
+            COL_AVG_ONLINE_DAY: string_fmt_time(player.avg_online_per_day),
+            COL_ONLINE_TIMES: str(len(player.online_times)),
+            COL_AVG_ONLINE_SESSION: string_fmt_time(player.avg_online_per_session),
+            COL_MAX_ONLINE_SESSION: string_fmt_time(player.max_online_per_session),
+            COL_LAST_ONLINE: strftime("%y-%m-%d %H:%M:%S", localtime(player.last_offline_time)),
+            COL_JOIN_TIME: strftime("%y-%m-%d %H:%M:%S", localtime(player.join_server_time))
+        }
+        for col, content in data.items():
+            if col == 0:
+                self.player_info_lc.InsertItem(line, "", content)
+            else:
+                self.player_info_lc.SetItem(line, col, content)
 
     def get_player_infos(self) -> dict[str, PlayerOnlineInfo]:
         """获取玩家在线时间信息"""
@@ -518,7 +609,7 @@ class PlayerInfoPanel(wx.Panel):
     def on_column_click(self, event):
         """列头点击事件处理函数"""
         column = event.GetColumn()
-        if column == 0:
+        if column in [COL_PLAYER_HEAD, COL_RANK]:
             return
         if self.sort_column == column:
             self.sort_ascending = not self.sort_ascending

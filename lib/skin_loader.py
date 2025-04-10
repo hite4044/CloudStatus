@@ -176,8 +176,7 @@ def get_player_skin(name: str, way: SkinLoadWay, use_cache: bool = True) -> Imag
     return skin
 
 
-def render_player_head(skin: Image.Image, target_size: int = 80) -> Image.Image:
-    wear_scale = 1.1
+def render_player_head(skin: Image.Image, target_size: int = 80, wear_scale: float = 1.1) -> Image.Image:
     px_size = int(skin.width / 64)
     if px_size != 1:
         wear_scale = 1
@@ -197,15 +196,16 @@ def render_player_head(skin: Image.Image, target_size: int = 80) -> Image.Image:
     return base_canvas
 
 
-def get_player_head(name: str, way: SkinLoadWay, size: int = 80, use_cache: bool = True) -> Image.Image:
+def get_player_head(name: str, way: SkinLoadWay, size: int = 80, use_cache: bool = True,
+                    wear_scale: float = 1.1) -> Image.Image:
     makedirs("cache/head", exist_ok=True)
     head_root = f"cache/head/{size}/{name}"
     makedirs(f"cache/head/{size}", exist_ok=True)
-    
+
     skin = get_player_skin(name, way, use_cache)
     if isfile(f"{head_root}_offline(.png"):
         if use_cache:
-            return render_player_head(skin, size)
+            return render_player_head(skin, size, wear_scale)
         remove(f"{head_root}_offline(.png")
     if isfile(f"{head_root}_failed(.png"):
         if use_cache:
@@ -217,7 +217,7 @@ def get_player_head(name: str, way: SkinLoadWay, size: int = 80, use_cache: bool
     elif isfile(f"{head_root}.png") and not use_cache:
         head = Image.open(f"{head_root}.png")
     else:
-        head = render_player_head(skin, size)
+        head = render_player_head(skin, size, wear_scale)
         if isfile(f"cache/skin/{name}_offline(.png"):
             with open(f"{head_root}_offline(.png", "w"):
                 pass
