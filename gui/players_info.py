@@ -421,7 +421,7 @@ class PlayerInfoPanel(wx.Panel):
             menu.Append(1, "复制详情")
             menu.Bind(wx.EVT_MENU, lambda _: copy_detail(), id=1)
             menu.Append(2, "查看逐小时在线分析")
-            menu.Bind(wx.EVT_MENU, lambda _: self.open_hour_online_win(get_data(first, 1)), id=2)
+            menu.Bind(wx.EVT_MENU, lambda _: self.open_hour_online_win(get_data(first, COL_NAME)), id=2)
             menu.Append(3, f"添加[{get_data(first, COL_NAME)}]至预览")
             menu.Append(4, f"刷新头像")
         else:
