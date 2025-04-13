@@ -3,10 +3,12 @@ from typing import Union
 
 
 class Counter:
-    def __init__(self):
+    def __init__(self, create_start: bool = False):
         self.timers = {}
         self.results = {}
         self.local_timer = 0
+        if create_start:
+            self.start()
 
     def start(self, *names: str) -> Union[None, 'Counter']:
         if names:
