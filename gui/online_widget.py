@@ -503,7 +503,7 @@ class PlayerOnlineWin(wx.Frame):
         self.SetFont(parent.GetFont())
         self.player = player
         self.head = CenteredBitmap(self)
-        self.name_label = TransparentCenteredText(self, label=player, size=(-1, 38))
+        self.name_label = TransparentCenteredText(self, label=player, size=(-1, 45))
         self.plot = PlayerDayOnlinePlot(self, player)
         self.data_plot = PlayerTimeOnlinePlotGroup(self, player)
         self.set_best_font_size()
