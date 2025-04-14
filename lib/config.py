@@ -34,7 +34,6 @@ class Configer:
     data_load_threads: int = 8
     data_dir: str = "./data"
     enable_data_save: bool = True
-    use_little_skin: bool = False
     data_save_fmt: DataSaveFmt = DataSaveFmt.NORMAL
     time_out: float = 3.0
     retry_times: int = 3
@@ -66,7 +65,10 @@ class Configer:
             with open("./config.json", "r", encoding="utf-8") as f:
                 cfg_dict: dict = json.load(f)
                 for key, value in cfg_dict.items():
-                    now_value = getattr(self, key) if hasattr(self, key) else None
+                    if not hasattr(self, key):
+                        logger.warning(f"配置文件存在未知配置项 -> {key}: {value}")
+                        continue
+                    now_value = getattr(self, key)
                     if isinstance(now_value, Enum):
                         value = now_value.__class__(value)
                     self.config_vars[key] = value

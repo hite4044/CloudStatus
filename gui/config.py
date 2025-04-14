@@ -223,8 +223,6 @@ class ConfigLinePanel(wx.Panel):
                        "数据点之间的空隙小于该值时 (秒), 通过增加假数据点自动修复",
                        (100, 600)),
             ConfigData("服务器名", "server_name", str, "重启程序生效"),
-            ConfigData("使用LittleSkin", "use_little_skin", bool,
-                       "是否使用LittleSkin站加载皮肤, 否则使用正版皮肤\n注：需要清除头像缓存"),
             ConfigData("数据文件格式", "data_save_fmt", DataSaveFmt,
                        tip="使用新的数据格式, 可以安全地随意切换数据格式 (保存性能有差别)\n下一次保存数据时使用新的格式",
                        items_desc={
@@ -284,9 +282,9 @@ class CtlBtnPanel(wx.Panel):
         buttons: list[tuple[str, str, Callable[[Any], None]]] = [
             ("删除缓存", "也可删除cache目录, 主要是缓存的皮肤和头像", self.clear_cache),
             ("保存数据", "立即保存当前数据到文件", self.save_data_now),
-            ("保存皮肤缓存", "立即保存皮肤缓存缓存到文件", self.save_skin_status)
+            ("保存缓存状态", "立即保存皮肤缓存状态到文件", self.save_skin_status)
         ]
-        sizer = wx.GridSizer(5, 3, 5, 5)
+        sizer = wx.GridSizer(3, 5, 5, 5)
         for label, tip, cbk in buttons:
             btn = wx.Button(self, label=label)
             btn.SetToolTip(wx.ToolTip(tip))
