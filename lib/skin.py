@@ -277,25 +277,28 @@ class PlayerContentManager:
         self.contents: dict[Player, PlayerContentInfo] = {}
         self.task_lock = Lock()
         self.active_tasks: list[tuple[Player, Callable, tuple[Any, ...]]] = []
-        self.loader_thread: Thread = Thread(target=self.skin_loader)
+        self.loader_thread: Thread = Thread(target=self.skin_loader, daemon=True)
         self.content_write_counter = 0
         self.load_cache()
 
     def load_cache(self):
         """加载皮肤缓存"""
+        logger.info("加载皮肤缓存状态...")
         makedirs("cache", exist_ok=True)
         if not isfile(r"cache\contents.json"):
             return
         with open(r"cache\contents.json", "r") as f:
             data = json.load(f)
-            for player_name, status_value in data.items():
-                player = Player(player_name)
-                if status_value not in ContentStatus.__members__:
-                    continue
-                self.contents[player] = PlayerContentInfo(player, ContentStatus(status_value))
+        enum_values = [member.value for name, member in ContentStatus.__members__.items()]
+        for player_name, status_value in data.items():
+            player = Player(player_name)
+            if status_value not in enum_values:
+                continue
+            self.contents[player] = PlayerContentInfo(player, ContentStatus(status_value))
 
     def save_cache(self):
         """保存皮肤缓存"""
+        logger.info("保存皮肤缓存状态...")
         makedirs("cache", exist_ok=True)
         data: dict[str, int] = {}
         # 将皮肤缓存状态转化为一对一的字典
@@ -318,7 +321,7 @@ class PlayerContentManager:
         with self.task_lock:
             self.active_tasks.append((player, callback, func_args))
             if not self.loader_thread.is_alive():
-                self.loader_thread = Thread(target=self.skin_loader)
+                self.loader_thread = Thread(target=self.skin_loader, daemon=True)
                 self.loader_thread.start()
 
     def skin_loader(self):
