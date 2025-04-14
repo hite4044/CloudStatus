@@ -6,7 +6,9 @@ from typing import cast
 
 from gui.widget import *
 from lib.common_data import common_data
+from lib.data import Player
 from lib.log import logger
+from lib.skin import skin_mgr, HeadLoadData
 
 XLIM_WIDTH = 35
 YLIM_WIDTH = 55
@@ -507,7 +509,8 @@ class PlayerOnlineWin(wx.Frame):
         self.set_best_font_size()
         self.bg_binder = GradientBgBinder(self)
         self.bg_binder.set_color(self.GetBackgroundColour())
-        Thread(target=load_player_head, args=(player, self.load_head, 120)).start()
+
+        Thread(target=self.load_head).start()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.head, 0, wx.EXPAND)
@@ -536,10 +539,8 @@ class PlayerOnlineWin(wx.Frame):
     def set_icon(self, head: wx.Image):
         self.SetIcon(wx.Icon(head.ConvertToBitmap(-1)))
 
-    def load_card_color(self):
+    def load_card_color(self, head: Image.Image):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
-        way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
-        head = get_player_head(self.player, way, 100)
         left_eye, right_eye = get_eye_color(head)
         color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
 
@@ -554,8 +555,9 @@ class PlayerOnlineWin(wx.Frame):
         self.bg_binder.set_color(color_left.wxcolor, color_right.wxcolor)
         self.Refresh()
 
-    def load_head(self, head: wx.Image):
-        self.head.SetBitmap(head)
-        self.set_icon(head)
-        self.load_card_color()
+    def load_head(self):
+        head = skin_mgr.get_player_head(HeadLoadData(Player(self.player), 120))[1]
+        self.head.SetBitmap(PilImg2WxImg(head))
+        self.set_icon(PilImg2WxImg(head))
+        self.load_card_color(head)
         self.Layout()

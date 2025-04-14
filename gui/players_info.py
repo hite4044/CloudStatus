@@ -16,7 +16,7 @@ from lib.common_data import common_data
 from lib.config import config
 from lib.data import Player
 from lib.log import logger
-from lib.skin_loader import get_player_head, SkinLoadWay
+from lib.skin import skin_mgr, HeadLoadData, ContentStatus
 
 COL_PLAYER_HEAD = 0
 COL_RANK = 1
@@ -311,8 +311,9 @@ class PlayerHeadList(wx.ImageList):
                 if not self.tasks:
                     return
                 name, use_cache = self.tasks.pop(0)
-            way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
-            pil_image = get_player_head(name, way, 16, use_cache, 1.0)
+            status, pil_image = skin_mgr.get_player_head(HeadLoadData(Player(name), 16, 1.0, use_cache))
+            if status == ContentStatus.FAILED:
+                pil_image = Image.open("assets/default_skin/error_head_16px.png")
             self[name] = PilImg2WxImg(pil_image).ConvertToBitmap()
 
     def __getitem__(self, name: str):

@@ -10,8 +10,10 @@ from gui.events import GetStatusNowEvent, AskToAddPlayerEvent, EVT_ASK_TO_ADD_PL
 from gui.online_widget import PlayerOnlineWin
 from gui.widget import *
 from lib.common_data import common_data
-from lib.data import ServerPoint
+from lib.config import config
+from lib.data import ServerPoint, Player
 from lib.log import logger
+from lib.skin import skin_mgr, HeadLoadData
 
 MAX_HAP = 20
 MIN_HAP = 6
@@ -68,7 +70,7 @@ class PlayerCard(wx.Panel):
         self.player = name
         self.head = PlayerHead(self)
         self.name_label = NameLabel(self, label=name, size=(-1, 32))
-        Thread(target=load_player_head, args=(name, self.load_head, 80)).start()
+        Thread(target=self.load_head).start()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.head, flag=wx.EXPAND, proportion=1)
@@ -95,12 +97,10 @@ class PlayerCard(wx.Panel):
 
     def refresh_head(self, *_):
         logger.info("刷新头像")
-        Thread(target=load_player_head, args=(self.player, self.load_head, 80, True)).start()
+        Thread(target=self.load_head, args=(False,)).start()
 
-    def load_card_color(self):
+    def load_card_color(self, head: Image.Image):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
-        way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
-        head = get_player_head(self.player, way, 80)
         left_eye = head.getpixel((28, 58))[:3]
         right_eye = head.getpixel((58, 58))[:3]
 
@@ -112,12 +112,13 @@ class PlayerCard(wx.Panel):
         self.name_label.set_color(color_left.set_luminance(0.9).wxcolor, color_right.set_luminance(0.8).wxcolor)
         self.Refresh()
 
-    def load_head(self, head: wx.Bitmap):
+    def load_head(self, use_cache: bool = True):
         if not self:
             return
-        self.head.SetBitmap(head)
-        self.load_card_color()
-        self.Layout()
+        head = skin_mgr.get_player_head(HeadLoadData(Player(self.player), 80, use_cache=use_cache))[1]
+        self.head.SetBitmap(PilImg2WxImg(head))
+        self.load_card_color(head)
+        wx.CallAfter(self.Layout)
 
 
 class PlayerCardList(wx.ScrolledWindow):

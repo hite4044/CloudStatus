@@ -6,16 +6,12 @@ widget.py
 from dataclasses import dataclass
 from datetime import datetime, time as dt_time, date as dt_date, timedelta
 from enum import Enum
-from typing import Callable
 
 import wx
 from PIL import Image
 from PIL import ImageDraw
 from colour import Color
 from wx.adv import DatePickerCtrl
-
-from lib.config import config
-from lib.skin_loader import SkinLoadWay, get_player_head
 
 font_cache: dict[int, wx.Font] = {}
 maxsize = 1919810
@@ -85,20 +81,6 @@ def string_fmt_time(seconds: float) -> str:
     if time_tuple[3] > 0:
         time_str += f"{time_tuple[3]}s"
     return time_str
-
-
-def load_player_head(name: str, cbk: Callable[[wx.Bitmap], None], target_size: int = 64, no_cache: bool = False):
-    """
-    加载玩家头像至Bitmap
-    :param name: 玩家名称
-    :param cbk: 加载回调函数
-    :param target_size: 目标渲染大小
-    :param no_cache: 不使用缓存
-    """
-    way = SkinLoadWay.LITTLE_SKIN if config.use_little_skin else SkinLoadWay.MOJANG
-    head = get_player_head(name, way, target_size, not no_cache)
-    bitmap = PilImg2WxImg(head)
-    wx.CallAfter(cbk, bitmap)
 
 
 def PilImg2WxImg(image: Image.Image):

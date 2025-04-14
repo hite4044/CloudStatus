@@ -14,6 +14,13 @@ class DataSaveFmt(Enum):
     PLAYER_LIST_MAPPING = 1
     PLAYER_MAPPING = 2
 
+class SkinLoadWay(Enum):
+    MOJANG = 0
+    OFFLINE = 1
+    LITTLE_SKIN = 2
+    CUSTOM_SERVER = 63
+    FAILED = 64
+
 
 class Configer:
     """配置文件管理器"""
@@ -38,6 +45,10 @@ class Configer:
     today_player_calc_way: int = 1
     tcw_custom_hours: int = 24
     tcw_custom_start: int = 4
+    skin_load_way: SkinLoadWay = SkinLoadWay.MOJANG
+    custom_skin_server: str = ""
+    custom_skin_root: str = ""
+    player_content_cache_inv: int = 4
 
     def __init__(self):
         self.config_vars = {}

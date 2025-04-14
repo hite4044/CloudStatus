@@ -17,6 +17,7 @@ from gui.widget import *
 from lib.common_data import common_data
 from lib.data import *
 from lib.perf import Counter
+from lib.skin import skin_mgr
 
 mpl_rcParams["font.family"] = "Microsoft YaHei"
 plt.rcParams["axes.unicode_minus"] = False
@@ -172,6 +173,7 @@ class GUI(wx.Frame):
     def on_close(self, _):
         logger.info("程序停止中...")
         self.data_manager.save_data()
+        skin_mgr.save_cache()
         config.save()
         self.stop_flag.set()
         self.event_flag.set()

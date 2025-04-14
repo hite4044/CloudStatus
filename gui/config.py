@@ -6,13 +6,14 @@ import os
 from copy import copy
 # noinspection PyUnresolvedReferences
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 from gui.events import ApplyValueEvent, EVT_APPLY_VALUE
 from gui.widget import *
 from lib.common_data import common_data
-from lib.config import config, DataSaveFmt
+from lib.config import config, DataSaveFmt, SkinLoadWay
 from lib.data import MAX_SIZE
+from lib.skin import skin_mgr
 
 
 @dataclass
@@ -159,6 +160,8 @@ class ConfigLine(wx.Panel):
         elif isinstance(self.fmt, type(Enum)):
             self.widget = wx.Choice(parent, choices=[desc for _, desc in data.items_desc.items()])
             assert isinstance(self.value, Enum)
+            keys = [k for k in data.items_desc.keys()]
+            self.selection_map: dict[int, Enum] = {i: k for i, k in enumerate(keys)}
             self.widget.SetSelection(self.value.value)
         else:
             raise ValueError(f"Unsupported fmt: {self.fmt}")
@@ -191,7 +194,7 @@ class ConfigLine(wx.Panel):
 
     def get_value(self) -> Any:
         if isinstance(self.widget, wx.Choice):
-            return self.fmt(self.widget.GetSelection())
+            return self.selection_map[self.widget.GetSelection()]
         else:
             # noinspection PyUnresolvedReferences
             return self.fmt(self.widget.GetValue())
@@ -235,7 +238,20 @@ class ConfigLinePanel(wx.Panel):
                 ConfigData("FP最大重试次数", "fp_max_try", int, "重获全部玩家 的最大重试次数", (2, 7))
             ]),
             ConfigData("记录服务器延迟", "status_ping", bool,
-                       "获取服务器信息时是否获取服务器延迟\n减少数据文件大小, 不影响之前的数据\n有极微小的性能提升")
+                       "获取服务器信息时是否获取服务器延迟\n减少数据文件大小, 不影响之前的数据\n有极微小的性能提升"),
+            ConfigGroup("皮肤", [
+                ConfigData("皮肤加载方式", "skin_load_way", SkinLoadWay,
+                           tip="指定从哪个皮肤站加载皮肤",
+                           items_desc={
+                               SkinLoadWay.MOJANG: "正版皮肤",
+                               SkinLoadWay.LITTLE_SKIN: "LittleSkin",
+                           }),
+                ConfigData("自定义皮肤服务器", "custom_skin_server", str, "皮肤服务器的地址, 需支持CustomSkinLoader"),
+                ConfigData("自定义皮肤根目录", "custom_skin_root", str,
+                           "皮肤服务器用户资料的皮肤字典路径, 一般为 skins\n"
+                           "或自己获取: 访问[https://{皮肤服务器地址}/{角色名}.json]并查看default关键字(贴图ID)所在字典名"),
+
+            ])
         ]
         final_sizer = wx.GridSizer(1, 2, 5, 5)
         line_sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
@@ -268,8 +284,9 @@ class CtlBtnPanel(wx.Panel):
         buttons: list[tuple[str, str, Callable[[Any], None]]] = [
             ("删除缓存", "也可删除cache目录, 主要是缓存的皮肤和头像", self.clear_cache),
             ("保存数据", "立即保存当前数据到文件", self.save_data_now),
+            ("保存皮肤缓存", "立即保存皮肤缓存缓存到文件", self.save_skin_status)
         ]
-        sizer = wx.GridSizer(len(buttons), 3, 5, 5)
+        sizer = wx.GridSizer(5, 3, 5, 5)
         for label, tip, cbk in buttons:
             btn = wx.Button(self, label=label)
             btn.SetToolTip(wx.ToolTip(tip))
@@ -295,6 +312,11 @@ class CtlBtnPanel(wx.Panel):
                 wx.MessageBox("保存成功", "提示", wx.OK | wx.ICON_INFORMATION)
         else:
             wx.MessageBox("保存失败, 请先启用保存数据功能", "提示", wx.OK | wx.ICON_INFORMATION)
+
+    @staticmethod
+    def save_skin_status(_):
+        skin_mgr.save_cache()
+        wx.MessageBox("保存成功", "提示", wx.OK | wx.ICON_INFORMATION)
 
 
 class ConfigPanel(wx.Panel):
