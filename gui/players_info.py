@@ -388,9 +388,14 @@ class PlayerInfoPanel(wx.Panel):
         self.start_analyze_btn.Bind(wx.EVT_BUTTON, self.start_analyze)
         self.player_info_lc.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_click)
         self.player_info_lc.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_menu)
+        self.player_info_lc.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_player)
 
         self.reset_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
         self.load_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
+
+    def on_activate_player(self, event: wx.ListEvent):
+        player = self.player_info_lc.GetItemText(event.GetItem().GetId(), COL_NAME)
+        self.open_hour_online_win(player)
 
     def on_menu(self, _):
         first = self.player_info_lc.GetFirstSelected()
