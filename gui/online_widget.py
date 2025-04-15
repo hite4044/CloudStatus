@@ -1,6 +1,6 @@
 from copy import copy
 # noinspection PyUnresolvedReferences
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Thread
 from typing import cast
 
@@ -44,6 +44,7 @@ def fmt_time_unit(seconds: float, day: bool = False, hour: bool = False, minute:
 class EyeResampleRule:
     eye_pos: tuple[int, int]
     resample_points: list[tuple[int, int]]
+    res_resample_points: list[tuple[int, int]] = field(default_factory=list)
 
 
 class TimeOnlinePlotUnit(Enum):
@@ -433,14 +434,6 @@ class PlayerDayOnlinePlot(wx.Window):
 def get_color_similarity(color1: tuple[int, int, int], color2: tuple[int, int, int]):
     """计算颜色相似度, 值越大相似度越小"""
     sim = sum(abs(c1 - c2) for c1, c2 in zip(color1, color2)) / 3 / 255
-    dark_c1 = color1[0] * 0.299 + color1[1] * 0.587 + color1[2] * 0.114
-    if dark_c1 > 180:
-        sim /= 2
-    else:
-        dark_c2 = color2[0] * 0.299 + color2[1] * 0.587 + color2[2] * 0.114
-        if dark_c2 < 160:
-            sim *= 2
-    sim = min(sim, 1)
     return sim
 
 
@@ -452,10 +445,10 @@ def get_eye_color(head: Image.Image):
         return head.getpixel((int(x_pos * pt_size + pt_size / 2), int(y_pos * pt_size + pt_size / 2)))[:3]
 
     rules: list[tuple[float, list[EyeResampleRule]]] = [
-        (1.5, [EyeResampleRule((2, 5), [(1, 5), (1, 6)]),
-               EyeResampleRule((5, 5), [(6, 5), (6, 6)])]),
-        (2.5, [EyeResampleRule((2, 6), [(1, 6), (3, 6), (2, 7)]),
-               EyeResampleRule((5, 6), [(4, 6), (6, 6), (5, 7)])]),
+        (1.5, [EyeResampleRule((2, 5), [(1, 5), (2, 7)]),
+               EyeResampleRule((5, 5), [(6, 5), (5, 7)])]),
+        (2.5, [EyeResampleRule((2, 6), [(1, 6), (2, 7)], [(2, 5)]),
+               EyeResampleRule((5, 6), [(4, 6), (5, 7)], [(5, 5)])]),
         (0.5, [EyeResampleRule((2, 4), [(1, 4), (3, 4)]),
                EyeResampleRule((5, 4), [(4, 4), (6, 4)])]),
         (0.8, [EyeResampleRule((1, 5), [(0, 5), (2, 5), (1, 6)]),
@@ -477,16 +470,16 @@ def get_eye_color(head: Image.Image):
                 logger.debug(f"   |- 采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
                 near_similarities.append(sim)
             # 添加调试输出：匹配结果
-            logger.debug(f"|- 眼睛采样点 {eye_rule.eye_pos} - 最大相似度: {max(near_similarities)}")
-            if len(set(near_similarities)) == 1:
-                near_similarities.append(max(near_similarities) * 1.5)
+            eye_sim = sum(near_similarities) / len(near_similarities)
+            logger.debug(f" |- 眼睛采样点 {eye_rule.eye_pos} - 值: {eye_sim}")
             eye_colors.append(eye_color)
-            eys_similarities.append(max(near_similarities))
+            eys_similarities.append(eye_sim)
         assert len(eye_colors) == 2
         final_sim = max(eys_similarities) * widget
         results[final_sim] = cast(tuple[tuple[int, int, int], tuple[int, int, int]], tuple(eye_colors))
         # 添加调试输出：记录当前结果
         logger.debug(f"# 本组眼睛颜色: {tuple(eye_colors)} - 最终相似度: {final_sim}")
+        logger.debug("")
 
     # 添加最终结果的调试输出
     logger.debug(f"最终选择颜色: {results[max(results.keys())]}")
@@ -544,13 +537,13 @@ class PlayerOnlineWin(wx.Frame):
         left_eye, right_eye = get_eye_color(head)
         color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
 
-        # 亮度向0.8移动30%, 饱和度向0.5移动75%
-        lum_target = 0.8
-        color_left.lum = color_left.lum * 0.7 + lum_target * 0.3
-        color_right.lum = color_right.lum * 0.7 + lum_target * 0.3
-        sat_target = 0.5
-        color_left.sat = color_left.sat * 0.25 + sat_target * 0.75
-        color_right.sat = color_right.sat * 0.25 + sat_target * 0.75
+        # 亮度向增加30%, 饱和度减少25%
+        lum_target, lum_percent = 1.0, 0.3
+        color_left.lum = color_left.lum * (1 - lum_percent) + lum_target * lum_percent
+        color_right.lum = color_right.lum * (1 - lum_percent) + lum_target * lum_percent
+        sat_target, sat_percent = 0.0, 0.25
+        color_left.sat = color_left.sat * (1 - sat_percent) + sat_target * sat_percent
+        color_right.sat = color_right.sat * (1 - sat_percent) + sat_target * sat_percent
 
         self.bg_binder.set_color(color_left.wxcolor, color_right.wxcolor)
         self.Refresh()
