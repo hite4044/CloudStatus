@@ -11,7 +11,7 @@ from PIL import Image
 
 from gui.events import PlayerOnlineInfoEvent, EVT_PLAYER_ONLINE_INFO, AddPlayersOverviewEvent
 from gui.online_widget import PlayerOnlineWin
-from gui.widget import TimeSelector, ft, string_fmt_time, PilImg2WxImg
+from gui.widget import TimeSelector, ft, string_fmt_time, PilImg2WxImg, EasyMenu
 from lib.common_data import common_data
 from lib.config import config
 from lib.data import Player
@@ -88,6 +88,50 @@ class OnlineInfoColor:
     BACKGROUND = (230, 230, 230)
     BAR = (6, 176, 37)
     BORDER = (188, 188, 188)
+
+
+class DataTabShowDialog(wx.Dialog):
+    def __init__(self, parent: wx.Window, title: str, texts: dict[str, str]):
+        super().__init__(parent, title=title, size=(550, 620), style=wx.DEFAULT_FRAME_STYLE)
+        self.SetFont(parent.GetFont())
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.select_box = wx.ListBox(self, style=wx.LB_SINGLE)
+        self.note = wx.Panel(self)
+        self.text_ctrls = {}
+        for caption, text in texts.items():
+            text_ctrl = wx.TextCtrl(self.note, style=wx.TE_MULTILINE | wx.TE_READONLY)
+            text_ctrl.SetValue(text)
+            text_ctrl.Hide()
+            self.text_ctrls[caption] = text_ctrl
+            self.select_box.Append(caption)
+        sizer.Add(self.select_box, 1, wx.EXPAND)
+        sizer.Add(self.note, 2, wx.EXPAND)
+        self.SetSizer(sizer)
+        self.note_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.note.SetSizer(self.note_sizer)
+
+        self.select_box.Bind(wx.EVT_LISTBOX, self.on_select_box)
+        self.select_box.Select(0)
+        self.on_select_box(None)
+        self.Refresh()
+
+    def on_select_box(self, _):
+        item = self.select_box.GetSelection()
+        if item == -1:
+            return
+        if self.note_sizer.GetChildren():
+            last_ctrl: wx.TextCtrl = self.note_sizer.GetChildren()[0].GetWindow()
+            last_ctrl.Hide()
+            self.note_sizer.Clear()
+        text_ctrl: wx.TextCtrl = self.text_ctrls[self.select_box.GetString(item)]
+        text_ctrl.Show()
+        self.note_sizer.Add(text_ctrl, 1, wx.EXPAND)
+        self.note_sizer.Layout()
+        Thread(target=self.set_icon, args=(self.select_box.GetString(item),), daemon=True).start()
+
+    def set_icon(self, name: str):
+        self.SetIcon(PilImg2WxImg(skin_mgr.get_player_head(HeadLoadData(Player(name), size=80))))
 
 
 class OnlineInfoLine(wx.Control):
@@ -393,49 +437,74 @@ class PlayerInfoPanel(wx.Panel):
         self.reset_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
         self.load_btn.Bind(wx.EVT_BUTTON, self.on_filter_update)
 
-    def on_activate_player(self, event: wx.ListEvent):
-        player = self.player_info_lc.GetItemText(event.GetItem().GetId(), COL_NAME)
-        self.open_hour_online_win(player)
+    ### Menu Event ###
 
     def on_menu(self, _):
         first = self.player_info_lc.GetFirstSelected()
         if first == -1:
             return
-        selections = []
+        players = []
         while first != -1:
-            selections.append(first)
+            players.append(first)
             first = self.player_info_lc.GetNextSelected(first)
-        first = selections[0]
+        first = players[0]
 
         def get_data(line, column) -> str:
             return self.player_info_lc.GetItemText(line, column)
 
         def copy_detail():
-            text = f"玩家: {get_data(first, COL_NAME)}\n"
-            text += f"总在线时长: {get_data(first, COL_TOTAL_ONLINE)}\n"
-            text += f"今天在线时长: {get_data(first, COL_TODAY_ONLINE)}\n"
-            text += f"天平均在线: {get_data(first, COL_AVG_ONLINE_DAY)}\n"
-            text += f"在线次数: {get_data(first, COL_ONLINE_TIMES)}\n"
-            text += f"平均每次在线: {get_data(first, COL_AVG_ONLINE_SESSION)}\n"
-            text += f"最长单次在线: {get_data(first, COL_MAX_ONLINE_SESSION)}\n"
-            text += f"最近在线: {get_data(first, COL_LAST_ONLINE)}\n"
-            text += f"进服时间: {get_data(first, COL_JOIN_TIME)}"
-            wx.TheClipboard.SetData(wx.TextDataObject(text))
+            wx.TheClipboard.SetData(wx.TextDataObject(self.get_player_detail(first)))
 
-        menu = wx.Menu()
-        if len(selections) == 1:
-            menu.Append(1, "复制详情")
-            menu.Bind(wx.EVT_MENU, lambda _: copy_detail(), id=1)
-            menu.Append(2, "查看逐小时在线分析")
-            menu.Bind(wx.EVT_MENU, lambda _: self.open_hour_online_win(get_data(first, COL_NAME)), id=2)
-            menu.Append(3, f"添加[{get_data(first, COL_NAME)}]至预览")
-            menu.Append(4, f"刷新头像")
+        menu = EasyMenu()
+        if len(players) == 1:
+            menu.Append("打开在线分析", self.open_hour_online_win, get_data(first, COL_NAME))
+            menu.Append(f"添加至预览", self.add_players_to_preview, players)
+            menu.AppendSeparator()
+            menu.Append("复制详情", copy_detail)
+            menu.Append("打开详情窗口", self.show_player_data, players)
+            menu.AppendSeparator()
+            menu.Append(f"刷新头像", self.refresh_player_head, players)
         else:
-            menu.Append(3, f"添加[{len(selections)}]个玩家至预览")
-            menu.Append(4, f"刷新[{len(selections)}]个玩家的头像")
-        menu.Bind(wx.EVT_MENU, lambda _: self.add_players_to_preview(selections), id=3)
-        menu.Bind(wx.EVT_MENU, lambda _: self.refresh_player_head(selections), id=4)
+            menu.Append(f"添加至预览 ({len(players)})", self.add_players_to_preview, players)
+            menu.AppendSeparator()
+            menu.Append(f"打开详情窗口 ({len(players)})", self.show_player_data, players)
+            menu.AppendSeparator()
+            menu.Append(f"刷新头像 ({len(players)})", self.refresh_player_head, players)
         self.PopupMenu(menu)
+
+    def get_player_detail(self, item: int):
+
+        def get_data(line, column) -> str:
+            return self.player_info_lc.GetItemText(line, column)
+
+        texts = [
+            f"玩家: {get_data(item, COL_NAME)}",
+            f"总在线时长: {get_data(item, COL_TOTAL_ONLINE)}",
+            f"今天在线时长: {get_data(item, COL_TODAY_ONLINE)}",
+            f"天平均在线: {get_data(item, COL_AVG_ONLINE_DAY)}",
+            f"在线次数: {get_data(item, COL_ONLINE_TIMES)}",
+            f"平均每次在线: {get_data(item, COL_AVG_ONLINE_SESSION)}",
+            f"最长单次在线: {get_data(item, COL_MAX_ONLINE_SESSION)}",
+            f"最近在线: {get_data(item, COL_LAST_ONLINE)}",
+            f"进服时间: {get_data(item, COL_JOIN_TIME)}",
+        ]
+        return "\n".join(texts)
+
+    def show_player_data(self, selections: list[int]):
+        texts: dict[str, str] = {}
+        name = ""
+        for item in selections:
+            name = self.player_info_lc.GetItemText(item, COL_NAME)
+            detail = self.get_player_detail(item)
+            texts[name] = detail
+        dialog = DataTabShowDialog(self, name if len(texts) == 1 else f"{len(texts)}玩家的详情", texts)
+        dialog.ShowModal()
+
+    ### Menu Event ###
+
+    def on_activate_player(self, event: wx.ListEvent):
+        player = self.player_info_lc.GetItemText(event.GetItem().GetId(), COL_NAME)
+        self.open_hour_online_win(player)
 
     def refresh_player_head(self, selections: list[int]):
         for name in [self.player_info_lc.GetItemText(i, COL_NAME) for i in selections]:

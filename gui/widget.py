@@ -6,6 +6,7 @@ widget.py
 from dataclasses import dataclass
 from datetime import datetime, time as dt_time, date as dt_date, timedelta
 from enum import Enum
+from typing import Callable, Any
 
 import wx
 from PIL import Image
@@ -205,6 +206,28 @@ def get_gradient_bitmap(color1: wx.Colour, color2: wx.Colour, size: tuple[int, i
     if not bitmap.IsOk():
         return None
     return bitmap.ConvertToBitmap()
+
+
+class EasyMenu(wx.Menu):
+    def __init__(self):
+        super().__init__()
+        self.cbk_map: dict[int, Callable] = {}
+        self.args_map: dict[int, tuple[Any, ...]] = {}
+
+    def Append(self, label: str, callback: Callable, *cbk_args, handler_event: bool = False):
+        item: wx.MenuItem = super().Append(wx.ID_ANY, label)
+        if handler_event:
+            self.Bind(wx.EVT_MENU, callback, item)
+        else:
+            self.cbk_map[item.GetId()] = callback
+            self.args_map[item.GetId()] = cbk_args
+            self.Bind(wx.EVT_MENU, self.cbk_handler, item)
+        return item
+
+    def cbk_handler(self, event: wx.MenuEvent):
+        cbk = self.cbk_map[event.GetId()]
+        args = self.args_map[event.GetId()]
+        cbk(*args)
 
 
 class NoTabNotebook(wx.Panel):
