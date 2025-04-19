@@ -6,7 +6,6 @@ import os
 from copy import copy
 # noinspection PyUnresolvedReferences
 from dataclasses import dataclass
-from typing import Any, Callable
 
 from gui.events import ApplyValueEvent, EVT_APPLY_VALUE
 from gui.widget import *
@@ -200,7 +199,7 @@ class ConfigLine(wx.Panel):
             return self.fmt(self.widget.GetValue())
 
 
-class ConfigLinePanel(wx.Panel):
+class ConfigLinePanel(wx.SplitterWindow):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
         self.config_map: list[ConfigData | ConfigGroup] = [
@@ -251,29 +250,46 @@ class ConfigLinePanel(wx.Panel):
 
             ])
         ]
-        final_sizer = wx.GridSizer(1, 2, 5, 5)
+        line_panel = wx.Panel(self)
+        groups_panel = wx.Panel(self)
         line_sizer = wx.FlexGridSizer(len(self.config_map) + 1, 2, 5, 5)
-        group_sizer = wx.FlexGridSizer(4, 1, 5, 5)
+        groups_sizer = wx.FlexGridSizer(10, 1, 5, 5)
         self.SetFont(ft(11))
         line_sizer.AddSpacer(5)
         line_sizer.AddSpacer(0)
 
-        def load_config(t_sizer: wx.Sizer, data: ConfigData | ConfigGroup):
+        def load_config(t_sizer: wx.Sizer, data: ConfigData | ConfigGroup, config_parent: wx.Window):
             if isinstance(data, ConfigGroup):
-                cfg_sizer = StaticFlexGridSizer(self, data.label, len(data.lines), 2, 5, 5)
+                group_panel = wx.CollapsiblePane(groups_panel, label=data.label,
+                                                 style=wx.CP_DEFAULT_STYLE | wx.CP_NO_TLW_RESIZE)
+                group_sizer_out = wx.BoxSizer(wx.VERTICAL)
+                group_sizer = wx.FlexGridSizer(len(data.lines), 2, 5, 5)
                 for cfg_data_in in data.lines:
-                    load_config(cfg_sizer, cfg_data_in)
-                group_sizer.Add(cfg_sizer, proportion=1, flag=wx.EXPAND)
+                    load_config(group_sizer, cfg_data_in, group_panel.GetPane())
+                group_sizer_out.Add(group_sizer, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+                group_panel.GetPane().SetSizer(group_sizer_out)
+                group_panel.Collapse(True)
+                group_panel.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, self.on_collapse)
+                groups_sizer.Add(group_panel, 1, wx.EXPAND)
             if isinstance(data, ConfigData):
-                line = ConfigLine(self, data, use_sizer=False, cbk=config.set_value)
+                line = ConfigLine(config_parent, data, use_sizer=False, cbk=config.set_value)
                 t_sizer.Add(line.label, proportion=0, flag=wx.EXPAND)
                 t_sizer.Add(line.widget, proportion=1, flag=wx.EXPAND)
 
         for cfg_data in self.config_map:
-            load_config(line_sizer, cfg_data)
-        final_sizer.Add(line_sizer, flag=wx.EXPAND)
-        final_sizer.Add(group_sizer, flag=wx.EXPAND)
-        self.SetSizer(final_sizer)
+            load_config(line_sizer, cfg_data, line_panel)
+
+        line_panel.SetSizer(line_sizer)
+        groups_panel.SetSizer(groups_sizer)
+        self.SetMinimumPaneSize(20)
+        self.SplitVertically(line_panel, groups_panel)
+        self.SetSashGravity(0.5)
+
+        self.groups_sizer = groups_sizer
+
+    def on_collapse(self, event: wx.CollapsiblePaneEvent):
+        self.groups_sizer.Layout()
+        event.Skip()
 
 
 class CtlBtnPanel(wx.Panel):
@@ -284,12 +300,12 @@ class CtlBtnPanel(wx.Panel):
             ("保存数据", "立即保存当前数据到文件", self.save_data_now),
             ("保存缓存状态", "立即保存皮肤缓存状态到文件", self.save_skin_status)
         ]
-        sizer = wx.GridSizer(3, 5, 5, 5)
+        sizer = wx.FlexGridSizer(10, 2, 5, 5)
         for label, tip, cbk in buttons:
             btn = wx.Button(self, label=label)
             btn.SetToolTip(wx.ToolTip(tip))
             btn.Bind(wx.EVT_BUTTON, cbk)
-            sizer.Add(btn, proportion=1, flag=wx.EXPAND)
+            sizer.Add(btn, 0, wx.EXPAND)
         self.SetSizer(sizer)
 
     @staticmethod
@@ -320,9 +336,12 @@ class CtlBtnPanel(wx.Panel):
 class ConfigPanel(wx.Panel):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.config_line_panel = ConfigLinePanel(self)
         self.ctl_btn_panel = CtlBtnPanel(self)
         sizer.Add(self.config_line_panel, proportion=1, flag=wx.EXPAND)
+        sizer.AddSpacer(5)
+        sizer.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND)
+        sizer.AddSpacer(5)
         sizer.Add(self.ctl_btn_panel, proportion=0, flag=wx.EXPAND)
         self.SetSizer(sizer)
