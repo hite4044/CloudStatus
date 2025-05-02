@@ -161,7 +161,10 @@ class ConfigLine(wx.Panel):
             assert isinstance(self.value, Enum)
             keys = [k for k in data.items_desc.keys()]
             self.selection_map: dict[int, Enum] = {i: k for i, k in enumerate(keys)}
-            self.widget.SetSelection(self.value.value)
+            try:
+                self.widget.SetSelection(keys.index(self.value))
+            except  ValueError:
+                self.widget.SetSelection(0)
         else:
             raise ValueError(f"Unsupported fmt: {self.fmt}")
         self.widget.SetMaxSize((MAX_SIZE[0], 28))

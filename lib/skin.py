@@ -43,7 +43,7 @@ class SkinServer:
 
 
 SKIN_SERVER_PRE_DEF = {
-    SkinLoadWay.LITTLE_SKIN: SkinServer("https://littleskin.cn/csl/", "skins")
+    SkinLoadWay.LITTLE_SKIN: SkinServer("https://littleskin.cn/csl", "skins")
 }
 
 
@@ -255,7 +255,8 @@ def request_skin_custom(player: Player, req_data: SkinRequestData) -> tuple[Skin
         return SkinLoadStatus.FAILED, None
     skin_url = f"{server.texture_server}/{skin_id}"
     try:
-        return SkinLoadStatus.SUCCESS, Image.open(requests.get(skin_url).content).convert("RGBA")
+        image_io = BytesIO(requests.get(skin_url).content)
+        return SkinLoadStatus.SUCCESS, Image.open(image_io).convert("RGBA")
     except ConnectionError:
         return SkinLoadStatus.FAILED, None
     except UnidentifiedImageError:
