@@ -2,6 +2,7 @@ from copy import copy
 # noinspection PyUnresolvedReferences
 from dataclasses import dataclass, field
 from threading import Thread
+from time import localtime, strftime
 from typing import cast
 
 from gui.widget import *
@@ -353,6 +354,33 @@ class PlayerTimeOnlinePlotGroup(wx.Panel):
         self.GetParent().Refresh()
 
 
+class PlayerOnlineRangeList(wx.ListCtrl):
+    def __init__(self, parent: wx.Window, player: str):
+        super().__init__(parent, style=wx.LC_REPORT | wx.LC_VIRTUAL)
+        self.ranges = []
+        self.player = player
+        self.SetItemCount(1)
+        self.InsertColumn(1, "序号", format=wx.LIST_FORMAT_CENTER, width=50)
+        self.AppendColumn("加入", format=wx.LIST_FORMAT_CENTER, width=150)
+        self.AppendColumn("离开", format=wx.LIST_FORMAT_CENTER, width=150)
+        self.AppendColumn("持续", format=wx.LIST_FORMAT_CENTER, width=140)
+        Thread(target=self.load_data, daemon=True).start()
+
+    def load_data(self):
+        self.ranges = common_data.data_manager.get_player_online_ranges(self.player)
+
+    def OnGetItemText(self, item: int, column: int):
+        if column == 0:
+            return str(item + 1)
+        elif column == 1:
+            return strftime("%y-%m-%d %H:%M:%S", localtime(self.ranges[item][0]))
+        elif column == 2:
+            return strftime("%y-%m-%d %H:%M:%S", localtime(self.ranges[item][1]))
+        elif column == 3:
+            return string_fmt_time(self.ranges[item][1] - self.ranges[item][0])
+        return "Unknow"
+
+
 class PlayerDayOnlinePlot(wx.Window):
     """玩家逐小时在线图表"""
 
@@ -361,7 +389,7 @@ class PlayerDayOnlinePlot(wx.Window):
                          name='PlayerDayOnlinePlot')
         self.player = player
         self.datas: list[float] = [0.1, 0.4, 0.9, 1.0, 0.1, 0.6]
-        Thread(target=self.load_hour_online_data, args=(player,)).start()
+        Thread(target=self.load_hour_online_data, args=(player,), daemon=True).start()
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
         self.Bind(wx.EVT_MOTION, self.on_mouse_move)
@@ -476,7 +504,8 @@ def get_eye_color(head: Image.Image):
                 logger.debug(f"   |- 反向+采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
                 res_near_similarities.append(sim)
             # 添加调试输出：匹配结果
-            eye_sim = sum(near_similarities) / len(near_similarities) - sum(res_near_similarities) / len(res_near_similarities)
+            eye_sim = sum(near_similarities) / len(near_similarities) - sum(res_near_similarities) / len(
+                res_near_similarities)
             logger.debug(f" |- 眼睛采样点 {eye_rule.eye_pos} - 值: {eye_sim}")
             eye_colors.append(eye_color)
             eys_similarities.append(eye_sim)
@@ -498,29 +527,34 @@ class PlayerOnlineWin(wx.Frame):
     """
 
     def __init__(self, parent: wx.Window, player: str):
-        wx.Frame.__init__(self, parent, title=f"{player} 在线分析", size=(870, 750))
+        wx.Frame.__init__(self, parent, title=f"{player} 在线分析", size=(1170, 750))
         self.SetFont(parent.GetFont())
         self.player = player
         self.head = CenteredBitmap(self)
         self.name_label = TransparentCenteredText(self, label=player, size=(-1, 45))
         self.plot = PlayerDayOnlinePlot(self, player)
         self.data_plot = PlayerTimeOnlinePlotGroup(self, player)
+        self.ranges_lc = PlayerOnlineRangeList(self, player)
         self.set_best_font_size()
         self.bg_binder = GradientBgBinder(self)
         self.bg_binder.set_color(self.GetBackgroundColour())
 
         Thread(target=self.load_head).start()
 
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.head, 0, wx.EXPAND)
-        sizer.AddSpacer(5)
-        sizer.Add(self.name_label, 0, wx.EXPAND)
-        sizer.AddSpacer(5)
-        sizer.Add(self.plot, 2, wx.EXPAND)
-        sizer.AddSpacer(5)
-        sizer.Add(self.data_plot, 5, wx.EXPAND)
+        hor_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        ver_sizer = wx.BoxSizer(wx.VERTICAL)
+        ver_sizer.Add(self.head, 0, wx.EXPAND)
+        ver_sizer.AddSpacer(5)
+        ver_sizer.Add(self.name_label, 0, wx.EXPAND)
+        ver_sizer.AddSpacer(5)
+        ver_sizer.Add(self.plot, 2, wx.EXPAND)
+        ver_sizer.AddSpacer(5)
+        ver_sizer.Add(self.data_plot, 5, wx.EXPAND)
+        hor_sizer.Add(ver_sizer, 2, wx.EXPAND)
+        hor_sizer.AddSpacer(5)
+        hor_sizer.Add(self.ranges_lc, 1, wx.EXPAND)
         out_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        out_sizer.Add(sizer, 1, wx.EXPAND | wx.ALL, 7)
+        out_sizer.Add(hor_sizer, 1, wx.EXPAND | wx.ALL, 7)
         self.SetSizer(out_sizer)
 
     def set_best_font_size(self):

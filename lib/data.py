@@ -154,6 +154,7 @@ class DataManager:
         self.non_saved_counter = 0
         self.points_map: dict[str, ServerPoint] = {}
         self.data_files: list[str] = []
+        self.ranges_cache: dict[Player, list[tuple[float, float]]] = {}
         if not exists(self.data_dir):
             logger.info(f"创建目录 [{self.data_dir}]...")
             mkdir(self.data_dir)
@@ -174,6 +175,7 @@ class DataManager:
         if self.non_saved_counter >= config.saved_per_points:
             self.save_data()
             self.non_saved_counter = 0
+        self.ranges_cache.clear()
 
     def get_point(self, point_id: str) -> ServerPoint:
         """
@@ -190,6 +192,7 @@ class DataManager:
         """
         with self.data_ctl_lock:
             self.points_map.pop(point.id_)
+        self.ranges_cache.clear()
 
     def load_data(self):
         """从文件夹中查找并加载数据点"""
@@ -385,6 +388,8 @@ class DataManager:
         获取某个玩家所有在线时间段的列表
         :param player_name: 玩家名称
         """
+        if Player(player_name) in self.ranges_cache:
+            return self.ranges_cache[Player(player_name)]
         last_players: set[str] = set()
         active_start: float = 0
         result: list[tuple[float, float]] = []
@@ -404,6 +409,7 @@ class DataManager:
                 last_players = now_players
                 if i >= points_count - 1 and active_start != 0:
                     result.append((active_start, point.time))
+        self.ranges_cache[Player(player_name)] = result
         return result
 
 
