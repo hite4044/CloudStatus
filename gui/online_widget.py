@@ -434,7 +434,7 @@ class PlayerDayOnlinePlot(wx.Window):
 def get_color_similarity(color1: tuple[int, int, int], color2: tuple[int, int, int]):
     """计算颜色相似度, 值越大相似度越小"""
     sim = sum(abs(c1 - c2) for c1, c2 in zip(color1, color2)) / 3 / 255
-    return sim
+    return min(sim, 0.5)
 
 
 def get_eye_color(head: Image.Image):
@@ -445,12 +445,12 @@ def get_eye_color(head: Image.Image):
         return head.getpixel((int(x_pos * pt_size + pt_size / 2), int(y_pos * pt_size + pt_size / 2)))[:3]
 
     rules: list[tuple[float, list[EyeResampleRule]]] = [
-        (1.5, [EyeResampleRule((2, 5), [(1, 5), (2, 7)]),
+        (2.5, [EyeResampleRule((2, 5), [(1, 5), (2, 7)]),
                EyeResampleRule((5, 5), [(6, 5), (5, 7)])]),
-        (2.5, [EyeResampleRule((2, 6), [(1, 6), (2, 7)], [(2, 5)]),
+        (2.0, [EyeResampleRule((2, 6), [(1, 6), (2, 7)], [(2, 5)]),
                EyeResampleRule((5, 6), [(4, 6), (5, 7)], [(5, 5)])]),
-        (0.5, [EyeResampleRule((2, 4), [(1, 4), (3, 4)]),
-               EyeResampleRule((5, 4), [(4, 4), (6, 4)])]),
+        (1.5, [EyeResampleRule((2, 4), [(1, 4), (3, 4)], [(2, 6)]),
+               EyeResampleRule((5, 4), [(4, 4), (6, 4)], [(2, 6)])]),
         (0.8, [EyeResampleRule((1, 5), [(0, 5), (2, 5), (1, 6)]),
                EyeResampleRule((6, 5), [(5, 5), (7, 5), (6, 6)])]),
     ]
@@ -461,6 +461,7 @@ def get_eye_color(head: Image.Image):
         eys_similarities = []
         for eye_rule in rule_group:
             near_similarities = []
+            res_near_similarities = [] if eye_rule.res_resample_points else [0.0]
             eye_color = cast(tuple[int, int, int], get_pixel(*eye_rule.eye_pos))
             # 添加调试输出：当前处理的坐标和原始颜色值
             logger.debug(f"|- 处理眼睛 {eye_rule.eye_pos} - 基础颜色: {eye_color}")
@@ -469,8 +470,13 @@ def get_eye_color(head: Image.Image):
                 sim = get_color_similarity(eye_color, resample_color)
                 logger.debug(f"   |- 采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
                 near_similarities.append(sim)
+            for near_point in eye_rule.res_resample_points:
+                resample_color = cast(tuple[int, int, int], get_pixel(*near_point))
+                sim = get_color_similarity(eye_color, resample_color)
+                logger.debug(f"   |- 反向+采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
+                res_near_similarities.append(sim)
             # 添加调试输出：匹配结果
-            eye_sim = sum(near_similarities) / len(near_similarities)
+            eye_sim = sum(near_similarities) / len(near_similarities) - sum(res_near_similarities) / len(res_near_similarities)
             logger.debug(f" |- 眼睛采样点 {eye_rule.eye_pos} - 值: {eye_sim}")
             eye_colors.append(eye_color)
             eys_similarities.append(eye_sim)
