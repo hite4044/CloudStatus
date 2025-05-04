@@ -368,6 +368,7 @@ class PlayerOnlineRangeList(wx.ListCtrl):
 
     def load_data(self):
         self.ranges = common_data.data_manager.get_player_online_ranges(self.player)
+        wx.CallAfter(self.SetItemCount, len(self.ranges))
 
     def OnGetItemText(self, item: int, column: int):
         if column == 0:
