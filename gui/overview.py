@@ -113,10 +113,12 @@ class PlayerCard(wx.Panel):
         self.Refresh()
 
     def load_head(self, use_cache: bool = True):
-        if not self:
-            return
         head = skin_mgr.get_player_head(HeadLoadData(Player(self.player), 80, use_cache=use_cache))[1]
-        self.head.SetBitmap(PilImg2WxImg(head))
+        try:
+            self.head.SetBitmap(PilImg2WxImg(head))
+        except RuntimeError:
+            logger.error("无法更新玩家头像 -> 控件已销毁")
+            return
         self.load_card_color(head)
         wx.CallAfter(self.Layout)
 
