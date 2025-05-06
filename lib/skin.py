@@ -421,7 +421,7 @@ class PlayerContentManager:
         def thread_func():
             callback(*self.get_player_head(data))
 
-        Thread(target=thread_func).start()
+        Thread(target=thread_func, daemon=True).start()
 
 
 skin_mgr = PlayerContentManager()

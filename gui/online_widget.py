@@ -540,7 +540,7 @@ class PlayerOnlineWin(wx.Frame):
         self.bg_binder = GradientBgBinder(self)
         self.bg_binder.set_color(self.GetBackgroundColour())
 
-        Thread(target=self.load_head).start()
+        Thread(target=self.load_head, daemon=True).start()
 
         hor_sizer = wx.BoxSizer(wx.HORIZONTAL)
         ver_sizer = wx.BoxSizer(wx.VERTICAL)

@@ -318,7 +318,7 @@ class PlayerHeadList(wx.ImageList):
         self.head_map: dict[str, int] = {}
         self.map_lock = Lock()
         self.tasks: list[tuple[str, bool]] = []
-        self.loader_thread = Thread(target=self.head_load_thread)
+        self.loader_thread = Thread(target=self.head_load_thread, daemon=True)
         self.current_index = 1
 
     @staticmethod
@@ -346,7 +346,7 @@ class PlayerHeadList(wx.ImageList):
         with self.map_lock:
             self.tasks.append((name, use_cache))
             if not self.loader_thread.is_alive():
-                self.loader_thread = Thread(target=self.head_load_thread)
+                self.loader_thread = Thread(target=self.head_load_thread, daemon=True)
                 self.loader_thread.start()
 
     def head_load_thread(self):
@@ -428,7 +428,7 @@ class PlayerInfoPanel(wx.Panel):
         sizer.Add(self.player_info_lc, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, border=5)
         self.SetSizer(sizer)
 
-        self.analyze_thread = Thread(target=self.analyze_players)
+        self.analyze_thread = Thread(target=self.analyze_players, daemon=True)
         self.start_analyze_btn.Bind(wx.EVT_BUTTON, self.start_analyze)
         self.player_info_lc.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_click)
         self.player_info_lc.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.on_menu)
@@ -539,7 +539,7 @@ class PlayerInfoPanel(wx.Panel):
     def start_analyze(self, _):
         """启动分析任务"""
         self.analyze_gauge.SetValue(0)
-        self.analyze_thread = Thread(target=self.analyze_players)
+        self.analyze_thread = Thread(target=self.analyze_players, daemon=True)
         self.analyze_thread.start()
 
     def analyze_players(self):

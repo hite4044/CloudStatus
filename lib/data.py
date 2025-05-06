@@ -206,7 +206,7 @@ class DataManager:
                 self.data_files.append(file)  # 把启动时加载的文件名记录下来
                 full_path = join(self.data_dir, file)
                 thread = Thread(name=f"Loader-{str(len(load_threads)).zfill(2)}", target=self.load_a_file,
-                                args=(full_path, lock))
+                                args=(full_path, lock), daemon=True)
                 thread.start()
                 load_threads.append(thread)
                 if len(load_threads) >= config.data_load_threads:

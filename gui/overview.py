@@ -70,7 +70,7 @@ class PlayerCard(wx.Panel):
         self.player = name
         self.head = PlayerHead(self)
         self.name_label = NameLabel(self, label=name, size=(-1, 32))
-        Thread(target=self.load_head).start()
+        Thread(target=self.load_head, daemon=True).start()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.head, flag=wx.EXPAND, proportion=1)
@@ -97,7 +97,7 @@ class PlayerCard(wx.Panel):
 
     def refresh_head(self, *_):
         logger.info("刷新头像")
-        Thread(target=self.load_head, args=(False,)).start()
+        Thread(target=self.load_head, args=(False,), daemon=True).start()
 
     def load_card_color(self, head: Image.Image):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""

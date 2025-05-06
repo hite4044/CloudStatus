@@ -101,7 +101,7 @@ class GUI(wx.Frame):
         self.stop_flag = Event()
         self.time_reset_flag = Event()
         self.status_flag = Event()
-        self.status_thread = Thread(target=self.status_thread_func)
+        self.status_thread = Thread(target=self.status_thread_func, daemon=True)
         self.status_thread.start()
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.status_flag.set()
