@@ -357,7 +357,7 @@ class PlayerTimeOnlinePlotGroup(wx.Panel):
 
 class PlayerOnlineRangeList(wx.ListCtrl):
     def __init__(self, parent: wx.Window, player: str):
-        super().__init__(parent, style=wx.LC_REPORT | wx.LC_VIRTUAL)
+        super().__init__(parent, style=wx.LC_REPORT | wx.LC_VIRTUAL, size=(510, -1))
         self.ranges = []
         self.player = player
         self.SetItemCount(1)
@@ -529,11 +529,11 @@ def get_eye_color(head: Image.Image):
 
 class PlayerOnlineWin(wx.Frame):
     """
-    一个查看玩家逐小时在线几率的窗口
+    一个查看玩家在线时间分析的窗口
     """
 
     def __init__(self, parent: wx.Window, player: str):
-        wx.Frame.__init__(self, parent, title=f"{player} 在线分析", size=(1170, 750))
+        wx.Frame.__init__(self, parent, title=f"{player} 在线分析", size=(1220, 750))
         self.SetFont(parent.GetFont())
         self.player = player
         self.head = CenteredBitmap(self)
