@@ -49,6 +49,7 @@ class Configer:
     custom_skin_root: str = ""
     player_content_cache_inv: int = 4
     debug_output_skin_color_pick_log: bool = False
+    gui_use_online_range_list: bool = True
 
     def __init__(self):
         self.config_vars = {}

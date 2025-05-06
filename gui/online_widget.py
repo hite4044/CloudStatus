@@ -533,14 +533,19 @@ class PlayerOnlineWin(wx.Frame):
     """
 
     def __init__(self, parent: wx.Window, player: str):
-        wx.Frame.__init__(self, parent, title=f"{player} 在线分析", size=(1220, 750))
+        if config.gui_use_online_range_list:
+            size = (1220, 750)
+        else:
+            size = (710, 750)
+        wx.Frame.__init__(self, parent, title=f"{player} 在线分析", size=size)
         self.SetFont(parent.GetFont())
         self.player = player
         self.head = CenteredBitmap(self)
         self.name_label = TransparentCenteredText(self, label=player, size=(-1, 45))
         self.plot = PlayerDayOnlinePlot(self, player)
         self.data_plot = PlayerTimeOnlinePlotGroup(self, player)
-        self.ranges_lc = PlayerOnlineRangeList(self, player)
+        if config.gui_use_online_range_list:
+            self.ranges_lc = PlayerOnlineRangeList(self, player)
         self.set_best_font_size()
         self.bg_binder = GradientBgBinder(self)
         self.bg_binder.set_color(self.GetBackgroundColour())
@@ -557,8 +562,9 @@ class PlayerOnlineWin(wx.Frame):
         ver_sizer.AddSpacer(5)
         ver_sizer.Add(self.data_plot, 5, wx.EXPAND)
         hor_sizer.Add(ver_sizer, 2, wx.EXPAND)
-        hor_sizer.AddSpacer(5)
-        hor_sizer.Add(self.ranges_lc, 1, wx.EXPAND)
+        if config.gui_use_online_range_list:
+            hor_sizer.AddSpacer(5)
+            hor_sizer.Add(self.ranges_lc, 1, wx.EXPAND)
         out_sizer = wx.BoxSizer(wx.HORIZONTAL)
         out_sizer.Add(hor_sizer, 1, wx.EXPAND | wx.ALL, 7)
         self.SetSizer(out_sizer)

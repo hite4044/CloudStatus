@@ -252,6 +252,11 @@ class ConfigLinePanel(wx.SplitterWindow):
                            "或自己获取: 访问[https://{皮肤服务器地址}/{角色名}.json]并查看default关键字(贴图ID)所在字典名"),
 
             ]),
+            ConfigGroup("界面", [
+                ConfigData("启用在线时间段列表", "gui_use_online_range_list", bool,
+                           "在在线时间分析窗口显示玩家在线在线时间段列表"),
+
+            ]),
             ConfigGroup("调试选项", [
                 ConfigData("输出眼睛取色日志", "debug_output_skin_color_pick_log", bool,
                            "在通过算法选择皮肤眼睛颜色时, 输出对应权重日志"),
