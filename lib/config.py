@@ -48,6 +48,7 @@ class Configer:
     custom_skin_server: str = ""
     custom_skin_root: str = ""
     player_content_cache_inv: int = 4
+    debug_output_skin_color_pick_log: bool = False
 
     def __init__(self):
         self.config_vars = {}

@@ -7,6 +7,7 @@ from typing import cast
 
 from gui.widget import *
 from lib.common_data import common_data
+from lib.config import config
 from lib.data import Player
 from lib.log import logger
 from lib.skin import skin_mgr, HeadLoadData
@@ -470,6 +471,10 @@ def get_eye_color(head: Image.Image):
     """对预设的可能得眼睛位置的周围像素计算相似度, 取相似度和最大的一组眼睛位置"""
     pt_size = head.height / 8
 
+    def debug(msg: str):
+        if config.debug_output_skin_color_pick_log:
+            logger.debug(msg)
+
     def get_pixel(x_pos: int, y_pos: int):
         return head.getpixel((int(x_pos * pt_size + pt_size / 2), int(y_pos * pt_size + pt_size / 2)))[:3]
 
@@ -493,32 +498,32 @@ def get_eye_color(head: Image.Image):
             res_near_similarities = [] if eye_rule.res_resample_points else [0.0]
             eye_color = cast(tuple[int, int, int], get_pixel(*eye_rule.eye_pos))
             # 添加调试输出：当前处理的坐标和原始颜色值
-            logger.debug(f"|- 处理眼睛 {eye_rule.eye_pos} - 基础颜色: {eye_color}")
+            debug(f"|- 处理眼睛 {eye_rule.eye_pos} - 基础颜色: {eye_color}")
             for near_point in eye_rule.resample_points:
                 resample_color = cast(tuple[int, int, int], get_pixel(*near_point))
                 sim = get_color_similarity(eye_color, resample_color)
-                logger.debug(f"   |- 采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
+                debug(f"   |- 采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
                 near_similarities.append(sim)
             for near_point in eye_rule.res_resample_points:
                 resample_color = cast(tuple[int, int, int], get_pixel(*near_point))
                 sim = get_color_similarity(eye_color, resample_color)
-                logger.debug(f"   |- 反向+采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
+                debug(f"   |- 反向 *采样点 {near_point} - 颜色: {resample_color} - 相似度: {sim}")
                 res_near_similarities.append(sim)
             # 添加调试输出：匹配结果
             eye_sim = sum(near_similarities) / len(near_similarities) - sum(res_near_similarities) / len(
                 res_near_similarities)
-            logger.debug(f" |- 眼睛采样点 {eye_rule.eye_pos} - 值: {eye_sim}")
+            debug(f" |- 眼睛采样点 {eye_rule.eye_pos} - 值: {eye_sim}")
             eye_colors.append(eye_color)
             eys_similarities.append(eye_sim)
         assert len(eye_colors) == 2
         final_sim = max(eys_similarities) * widget
         results[final_sim] = cast(tuple[tuple[int, int, int], tuple[int, int, int]], tuple(eye_colors))
         # 添加调试输出：记录当前结果
-        logger.debug(f"# 本组眼睛颜色: {tuple(eye_colors)} - 最终相似度: {final_sim}")
-        logger.debug("")
+        debug(f"# 本组眼睛颜色: {tuple(eye_colors)} - 最终相似度: {final_sim}")
+        debug("")
 
     # 添加最终结果的调试输出
-    logger.debug(f"最终选择颜色: {results[max(results.keys())]}")
+    debug(f"最终选择颜色: {results[max(results.keys())]}")
     return results[max(results.keys())]
 
 

@@ -251,6 +251,11 @@ class ConfigLinePanel(wx.SplitterWindow):
                            "皮肤服务器用户资料的皮肤字典路径, 一般为 skins\n"
                            "或自己获取: 访问[https://{皮肤服务器地址}/{角色名}.json]并查看default关键字(贴图ID)所在字典名"),
 
+            ]),
+            ConfigGroup("调试选项", [
+                ConfigData("输出眼睛取色日志", "debug_output_skin_color_pick_log", bool,
+                           "在通过算法选择皮肤眼睛颜色时, 输出对应权重日志"),
+
             ])
         ]
         line_panel = wx.Panel(self)
