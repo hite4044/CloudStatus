@@ -69,6 +69,7 @@ class PlayerCard(wx.Panel):
     def __init__(self, parent: wx.Window, name: str):
         wx.Panel.__init__(self, parent, size=(180, 180))
         self.player = name
+        self.head_image = None
         self.head = PlayerHead(self)
         self.name_label = NameLabel(self, label=name, size=(-1, 32))
         Thread(target=self.load_head, daemon=True).start()
@@ -125,6 +126,7 @@ class PlayerCard(wx.Panel):
             logger.error("无法更新玩家头像 -> 控件已销毁")
             return
         self.load_card_color(head)
+        self.head_image = head
         wx.CallAfter(self.Layout)
 
 
@@ -168,11 +170,22 @@ class PlayerCardList(wx.ScrolledWindow):
     def on_menu(self, _):
         menu = wx.Menu()
         menu.Append(wx.ID_ADD, "添加玩家")
+        menu.Append(wx.ID_REFRESH, "刷新所有头像颜色")
         menu.Append(wx.ID_CLEAR, "清空列表")
         menu.Bind(wx.EVT_MENU, self.on_add_player, id=wx.ID_ADD)
+        menu.Bind(wx.EVT_MENU, self.update_all_player_color, id=wx.ID_REFRESH)
         menu.Bind(wx.EVT_MENU, self.on_clear_all_cards, id=wx.ID_CLEAR)
         self.PopupMenu(menu)
         menu.Destroy()
+
+    def update_all_player_color(self, _):
+        dialog = wx.ProgressDialog("更新玩家头像颜色", "正在更新...", len(self.cards), self)
+        for i, card in enumerate(self.cards.values()):
+            if card.head_image is None:
+                continue
+            dialog.Update(i)
+            card.load_card_color(card.head_image)
+        dialog.Destroy()
 
     def update_players(self, players: list[str]) -> None:
         """更新其中的玩家"""
