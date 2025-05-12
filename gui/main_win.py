@@ -65,12 +65,17 @@ def get_server_status_raw(use_ping: bool = True) -> ServerPoint | None:
     try:
         server = JavaServer.lookup(config.addr, timeout=config.time_out)
         status = server.status()
-        ping = server.ping() if use_ping else 0
-        point = translate_status(status, ping)
-        return point
     except Exception as e:
         logger.warning(f"获取服务器状态失败: {e}")
         return None
+    ping = 0
+    try:
+        if use_ping:
+            ping = server.ping()
+    except Exception as e:
+        logger.warning(f"获取延迟失败: {e}, 跳过检测")
+    point = translate_status(status, ping)
+    return point
 
 
 def get_server_status_retry(use_ping: bool = True) -> ServerPoint | None:
