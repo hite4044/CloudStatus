@@ -206,11 +206,11 @@ class ConfigLinePanel(wx.SplitterWindow):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
         COLOR_PICK_WAY = {
-            PlayerColorPickWay.EYE_COLOR: "眼睛颜色",
-            PlayerColorPickWay.MAIN_COLOR: "主颜色",
-            PlayerColorPickWay.SECOND_COLOR: "次颜色",
-            PlayerColorPickWay.CUSTOM_COLOR_INDEX: "自定义颜色索引",
-            PlayerColorPickWay.FIXED_EYE_POS: "固定眼睛位置",
+            PlayerColorPickWay.EYE_COLOR: "眼睛颜色 (~1ms)",
+            PlayerColorPickWay.MAIN_COLOR: "主颜色 (~50ms)",
+            PlayerColorPickWay.SECOND_COLOR: "次颜色 (~50ms)",
+            PlayerColorPickWay.CUSTOM_COLOR_INDEX: "自定义颜色索引 (~50ms)",
+            PlayerColorPickWay.FIXED_EYE_POS: "固定眼睛位置 (~0ms)",
         }
         self.config_map: list[ConfigData | ConfigGroup] = [
             ConfigData("服务器地址", "addr", str, "要监测的服务器的地址"),
