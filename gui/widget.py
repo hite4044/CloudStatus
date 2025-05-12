@@ -104,6 +104,10 @@ class EasyColor:
         self.color.set_luminance(luminance)
         return self
 
+    def add_luminance(self, value: float):
+        self.color.set_luminance(min(1.0, self.color.get_luminance() + value))
+        return self
+
     @property
     def lum(self) -> float:
         return self.color.get_luminance()

@@ -9,6 +9,7 @@ from gui.events import GetStatusNowEvent, AskToAddPlayerEvent, EVT_ASK_TO_ADD_PL
     EVT_REMOVE_PLAYER_OVERVIEW
 from gui.online_widget import PlayerOnlineWin
 from gui.widget import *
+from lib.color_picker import get_player_color
 from lib.common_data import common_data
 from lib.config import config
 from lib.data import ServerPoint, Player
@@ -101,15 +102,19 @@ class PlayerCard(wx.Panel):
 
     def load_card_color(self, head: Image.Image):
         """从玩家头像中提取两个眼睛的颜色并应用到控件中"""
-        left_eye = head.getpixel((28, 58))[:3]
-        right_eye = head.getpixel((58, 58))[:3]
+        left_eye, right_eye = get_player_color(head, config.player_card_pick_way)
+        color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
 
-        if left_eye == right_eye:
-            color_left = color_right = EasyColor(*right_eye)
-        else:
-            color_left, color_right = EasyColor(*left_eye), EasyColor(*right_eye)
-        self.head.set_color(color_left.set_luminance(0.5).wxcolor, color_right.set_luminance(0.7).wxcolor)
-        self.name_label.set_color(color_left.set_luminance(0.9).wxcolor, color_right.set_luminance(0.8).wxcolor)
+        # 亮度向增加30%, 饱和度减少25%
+        lum_target, lum_percent = 1.0, 0.3
+        color_left.lum = color_left.lum * (1 - lum_percent) + lum_target * lum_percent
+        color_right.lum = color_right.lum * (1 - lum_percent) + lum_target * lum_percent
+        sat_target, sat_percent = 0.0, 0.25
+        color_left.sat = color_left.sat * (1 - sat_percent) + sat_target * sat_percent
+        color_right.sat = color_right.sat * (1 - sat_percent) + sat_target * sat_percent
+
+        self.head.set_color(color_left.wxcolor, color_right.wxcolor)
+        self.name_label.set_color(color_left.add_luminance(0.1).wxcolor, color_right.add_luminance(0.1).wxcolor)
         self.Refresh()
 
     def load_head(self, use_cache: bool = True):

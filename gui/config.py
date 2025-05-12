@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from gui.events import ApplyValueEvent, EVT_APPLY_VALUE
 from gui.widget import *
 from lib.common_data import common_data
-from lib.config import config, DataSaveFmt, SkinLoadWay
+from lib.config import config, DataSaveFmt, SkinLoadWay, PlayerColorPickWay
 from lib.data import MAX_SIZE
 from lib.skin import skin_mgr
 
@@ -205,6 +205,13 @@ class ConfigLine(wx.Panel):
 class ConfigLinePanel(wx.SplitterWindow):
     def __init__(self, parent: wx.Window):
         super().__init__(parent)
+        COLOR_PICK_WAY = {
+            PlayerColorPickWay.EYE_COLOR: "眼睛颜色",
+            PlayerColorPickWay.MAIN_COLOR: "主颜色",
+            PlayerColorPickWay.SECOND_COLOR: "次颜色",
+            PlayerColorPickWay.CUSTOM_COLOR_INDEX: "自定义颜色索引",
+            PlayerColorPickWay.FIXED_EYE_POS: "固定眼睛位置",
+        }
         self.config_map: list[ConfigData | ConfigGroup] = [
             ConfigData("服务器地址", "addr", str, "要监测的服务器的地址"),
             ConfigGroup("监测", [
@@ -255,7 +262,22 @@ class ConfigLinePanel(wx.SplitterWindow):
             ConfigGroup("界面", [
                 ConfigData("启用在线时间段列表", "gui_use_online_range_list", bool,
                            "在在线时间分析窗口显示玩家在线在线时间段列表"),
-
+                ConfigData("玩家卡片取色方式", "player_card_pick_way", PlayerColorPickWay,
+                           "在总览界面的 玩家卡片背景颜色的取色方式", items_desc=COLOR_PICK_WAY),
+                ConfigData("分析窗口取色方式", "player_win_pick_way", PlayerColorPickWay,
+                           "在玩家在线分析窗口中, 背景颜色的取色方式", items_desc=COLOR_PICK_WAY),
+                ConfigData("头像颜色提取数量", "color_extract_num", int,
+                           "提取头像主色时提取的颜色数量", range=(1, 10)),
+                ConfigData("头像颜色提取质量", "color_extract_quality", int,
+                           "提取头像主色时的质量", range=(10, 100)),
+                ConfigData("提取的颜色索引", "extracted_color_index", int,
+                           "选择头像中提取的颜色中的哪个颜色作为主题色\n-1 表示倒数第一个", range=(1, 10)),
+                ConfigData("提取的颜色索引2", "extracted_color_index2", int,
+                           "选择头像中提取的颜色中的哪个颜色作为主题色\n-1 表示倒数第一个", range=(1, 10)),
+                ConfigData("固定眼睛位置 X", "eye_fixed_pos_x", int,
+                           "固定眼睛位置的 X 坐标", range=(0, 8)),
+                ConfigData("固定眼睛位置 Y", "eye_fixed_pos_y", int,
+                           "固定眼睛位置的 Y 坐标", range=(0, 8)),
             ]),
             ConfigGroup("调试选项", [
                 ConfigData("输出眼睛取色日志", "debug_output_skin_color_pick_log", bool,

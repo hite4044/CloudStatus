@@ -21,6 +21,14 @@ class SkinLoadWay(Enum):
     CUSTOM_SERVER = 63
     FAILED = 64
 
+class PlayerColorPickWay(Enum):
+    """玩家头颅颜色选择方式"""
+    EYE_COLOR = 0
+    MAIN_COLOR = 1
+    SECOND_COLOR = 2
+    CUSTOM_COLOR_INDEX = 3
+    FIXED_EYE_POS = 4
+
 
 class Configer:
     """配置文件管理器"""
@@ -50,6 +58,14 @@ class Configer:
     player_content_cache_inv: int = 4
     debug_output_skin_color_pick_log: bool = False
     gui_use_online_range_list: bool = True
+    player_card_pick_way: PlayerColorPickWay = PlayerColorPickWay.EYE_COLOR
+    player_win_pick_way: PlayerColorPickWay = PlayerColorPickWay.EYE_COLOR
+    color_extract_num: int = 3
+    color_extract_quality: int = 10
+    extracted_color_index: int = 1
+    extracted_color_index2: int = 2
+    eye_fixed_pos_x: int = 2
+    eye_fixed_pos_y: int = 5
 
     def __init__(self):
         self.config_vars = {}
