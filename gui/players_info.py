@@ -133,7 +133,7 @@ class DataTabShowDialog(wx.Dialog):
     def set_icon(self, name: str):
         status, head = skin_mgr.get_player_head(HeadLoadData(Player(name), size=80))
         if head:
-            self.SetIcon(PilImg2WxImg(head))
+            self.SetIcon(wx.Icon(PilImg2WxImg(head).ConvertToBitmap()))
 
 
 class OnlineInfoLine(wx.Control):
