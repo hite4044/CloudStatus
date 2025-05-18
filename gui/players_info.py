@@ -131,7 +131,9 @@ class DataTabShowDialog(wx.Dialog):
         Thread(target=self.set_icon, args=(self.select_box.GetString(item),), daemon=True).start()
 
     def set_icon(self, name: str):
-        self.SetIcon(PilImg2WxImg(skin_mgr.get_player_head(HeadLoadData(Player(name), size=80))))
+        status, head = skin_mgr.get_player_head(HeadLoadData(Player(name), size=80))
+        if head:
+            self.SetIcon(PilImg2WxImg(head))
 
 
 class OnlineInfoLine(wx.Control):
