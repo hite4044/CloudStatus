@@ -5,3 +5,4 @@ pystray==0.19.5
 pillow==11.1.0
 requests==2.32.3
 colour==0.1.5
+colorthief==0.2.1
