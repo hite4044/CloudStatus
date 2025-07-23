@@ -95,7 +95,7 @@ def get_server_status_retry(use_ping: bool = True) -> ServerPoint | None:
 
 class GUI(wx.Frame):
     def __init__(self):
-        super().__init__(None, title=config.server_name + "监测", size=(1350, 850))
+        super().__init__(None, title=f"CloudStatus - {config.server_name}", size=(1350, 850))
         logger.info("初始化GUI")
         self.data_manager = DataManager(config.data_dir)
         self.data_manager.load_data()
