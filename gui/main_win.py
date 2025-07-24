@@ -261,10 +261,8 @@ class GUI(wx.Frame):
             if during >= config.check_inv:
                 last_status = perf_counter()
                 msg, point = self.get_server_status()
-                if perf_counter() - last_status > config.check_inv:
-                    last_status = last_status
-                else:
-                    last_status = perf_counter() - config.check_inv / 2
+                # 当前时间 - 监测所用时间 = 下一次监测提前 本次监测所用时间
+                last_status = max(10.0, perf_counter() - (perf_counter() - last_status))  # 缺掉的时间, 给我补回来！
                 if msg in ["ok", "error", "fp_error", "fp_ok"]:
                     if point is not None:
                         self.data_manager.add_point(point)
