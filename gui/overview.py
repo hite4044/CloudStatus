@@ -194,6 +194,8 @@ class PlayerCardList(wx.ScrolledWindow):
             card.Destroy()
         self.cards.clear()
         for player in players:
+            if player in self.cards:
+                continue
             card = PlayerCard(self, player)
             card.head.Bind(wx.EVT_LEFT_DCLICK, self.on_card_open)
             self.cards[player] = card
