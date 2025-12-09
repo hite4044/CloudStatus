@@ -16,6 +16,7 @@ from typing import Callable, Any
 
 import requests
 from PIL import Image, UnidentifiedImageError
+from requests.exceptions import SSLError
 
 from lib.config import config, SkinLoadWay
 from lib.data import Player
@@ -193,6 +194,9 @@ def request_skin_mojang(player: Player) -> tuple[SkinLoadStatus, Image.Image | N
     try:
         resp = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{player.name}")
         player_info = resp.json()
+    except SSLError as e:
+        logger.error(f"获取皮肤失败 -> SSL错误 [{player.name}] -> {e}")
+        return SkinLoadStatus.FAILED, None
     except ConnectionError as e:
         logger.error(f"获取皮肤失败 -> UUID信息服务器连接错误 [{player.name}] -> {e}")
         return SkinLoadStatus.FAILED, None
@@ -206,6 +210,9 @@ def request_skin_mojang(player: Player) -> tuple[SkinLoadStatus, Image.Image | N
         resp = requests.get(
             f"https://sessionserver.mojang.com/session/minecraft/profile/{player_info['id']}")
         profile = resp.json()
+    except SSLError as e:
+        logger.error(f"获取皮肤失败 -> SSL错误 [{player.name}] -> {e}")
+        return SkinLoadStatus.FAILED, None
     except ConnectionError as e:
         logger.error(f"获取皮肤失败 -> 个人信息服务器连接错误 [{player.name}] -> {e}")
         return SkinLoadStatus.FAILED, None
