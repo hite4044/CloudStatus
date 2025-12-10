@@ -457,11 +457,13 @@ class PlayerInfoPanel(wx.Panel):
         def copy_detail():
             wx.TheClipboard.SetData(wx.TextDataObject(self.get_player_detail(first)))
 
+
         menu = EasyMenu()
         if len(players) == 1:
             menu.Append("打开在线分析", self.open_hour_online_win, get_data(first, COL_NAME))
             menu.Append(f"添加至预览", self.add_players_to_preview, players)
             menu.AppendSeparator()
+            menu.Append("复制名称", lambda: wx.TheClipboard.SetData(wx.TextDataObject(get_data(first, COL_NAME))))
             menu.Append("复制详情", copy_detail)
             menu.Append("打开详情窗口", self.show_player_data, players)
             menu.AppendSeparator()
