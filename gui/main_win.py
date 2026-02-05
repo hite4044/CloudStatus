@@ -269,8 +269,8 @@ class GUI(wx.Frame):
                         self.server_status = ServerStatus.ONLINE
                     else:
                         if config.save_empty_pts:
-                            empty_point = ServerPoint.create_offline_point()
-                            self.data_manager.add_point(empty_point)
+                            point = ServerPoint.create_offline_point()
+                            self.data_manager.add_point(point)
                         self.server_status = ServerStatus.OFFLINE
                     wx.CallAfter(self.load_point, point)
 

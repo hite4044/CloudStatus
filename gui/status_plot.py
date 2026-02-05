@@ -486,7 +486,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
         """
         self.add_data(point)
         # 自动滚动
-        if runtime_add and round(self.offset + self.scale, 3) == 1:
+        if runtime_add and round(self.offset + 1 / self.scale, 3) == 1:
             self.offset = 1 - (1 / self.scale)
         # 启动刷新计时器
         if self.draw_call.IsRunning():
