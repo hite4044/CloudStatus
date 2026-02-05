@@ -12,6 +12,7 @@ from os import listdir, remove, mkdir
 from os.path import join, basename, isfile
 from random import randbytes
 from threading import Lock, Thread, current_thread
+from time import time
 
 from lib.config import *
 from lib.log import logger
@@ -80,24 +81,33 @@ def get_players_hash(players: list[dict[str, str]]) -> str:
 class ServerPoint:
     """数据点类"""
 
-    def __init__(self, time: float, online: int, players: list[Player], ping: float = 0, **_):
+    def __init__(self, time: float, online: int, players: list[Player], ping: float = 0, is_offline: bool = False, **_):
         self.time = time  # (sec)
         self.online = online
         self.players = players
         self.ping = ping  # (ms)
+        self.is_offline: bool = is_offline
         self.id_ = randbytes(8).hex()
 
+    @classmethod
+    def create_offline_point(cls):
+        return cls(time(), 0, [], is_offline=True)
+
     def to_dict(self):
-        return {
+        data =  {
             "time": self.time,
             "online": self.online,
             "players": [player.to_dict() for player in self.players],
-            **({"ping": self.ping} if self.ping != 0 else {}),
         }
+        if self.ping != 0:
+            data["ping"] = self.ping
+        if self.is_offline:
+            data["is_offline"] = True
+        return data
 
     def copy(self, time: float = None):
-        time = time if time is not None else self.time
-        return ServerPoint(time, self.online, self.players, self.ping)
+        time = time if time is not None else self.time  # 替换或者用本身的值
+        return ServerPoint(time, self.online, self.players, self.ping, self.is_offline)
 
     @staticmethod
     def from_dict(dic: dict) -> "ServerPoint":

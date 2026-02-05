@@ -218,6 +218,7 @@ class ConfigLinePanel(wx.SplitterWindow):
                 ConfigData("检查间隔", "check_inv", float, "两次检查之间的间隔 (秒)", (5, 600)),
                 ConfigData("超时时间", "time_out", float, "获取服务器状态的超时时间 (秒)", (0.5, 6.0)),
                 ConfigData("重试次数", "retry_times", int, "获取服务器状态失败的重试次数", (1, 5)),
+                ConfigData("保存空数据点", "save_empty_pts", bool, "保存服务器离线时的数据点")
             ]),
             ConfigGroup("数据", [
                 ConfigData("启用保存数据功能", "enable_data_save", bool, "一般用于远程路径查看数据"),
@@ -229,7 +230,7 @@ class ConfigLinePanel(wx.SplitterWindow):
             ConfigData("分析最短在线时间", "min_online_time", int,
                        "数据分析时使用的单次最小在线时间\n小于该时间忽略此次在线 (秒)", (0, 600)),
             ConfigData("数据空隙修复间隔", "fix_sep", float,
-                       "数据点之间的空隙小于该值时 (秒), 通过增加假数据点自动修复",
+                       "数据点之间的空隙大于该值时 (秒), 通过增加假数据点(不会保存至磁盘)自动修复",
                        (100, 600)),
             ConfigData("服务器名", "server_name", str, "重启程序生效"),
             ConfigData("数据文件格式", "data_save_fmt", DataSaveFmt,
