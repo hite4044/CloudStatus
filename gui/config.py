@@ -240,6 +240,15 @@ class ConfigLinePanel(wx.SplitterWindow):
                            DataSaveFmt.PLAYER_LIST_MAPPING: "玩家列表映射格式 (速度快) (50%)",
                            DataSaveFmt.PLAYER_MAPPING: "玩家映射格式 (速度中等) (36%)",
                        }),
+            ConfigGroup("图表", [
+                ConfigData("图表线颜色", "plot_line_color", str, "格式为#FFFFFF"),
+                ConfigData("图表标签颜色", "plot_fg_color", str, "格式为#FFFFFF"),
+                ConfigData("图表网格颜色", "plot_grid_color", str, "格式为#FFFFFF"),
+                ConfigData("图表背景颜色", "plot_bg_color", str, "格式为#FFFFFF"),
+                ConfigData("图表线宽", "plot_line_width", float, range=(0.1, 5.0)),
+                ConfigData("图表线透明度", "plot_line_alpha", float, range=(0.0, 1.0)),
+                ConfigData("图表最大缩放", "plot_max_scale", float, range=(1.5, 400.0)),
+            ]),
             ConfigGroup("全部玩家", [
                 ConfigData("启用获取全部玩家", "enable_full_players", bool, "重复获取服务器状态直到获取到全部玩家名称"),
                 ConfigData("FP循环获取间隔", "fp_re_status_inv", float, "重获全部玩家 的间隔", (1.0, 10.0)),

@@ -38,6 +38,13 @@ class Configer:
     points_per_file: int = 1200
     saved_per_points: int = 10
     fix_sep: float = 300.0
+    plot_line_color: str = "#31AAC6"
+    plot_fg_color: str = "#000000"
+    plot_grid_color: str = "#B0B0B0"
+    plot_bg_color: str = "#F0F0F0"
+    plot_line_width: float = 1.5
+    plot_line_alpha: float = 0.8
+    plot_max_scale: float = 200
     save_empty_pts: bool = True
     min_online_time: int = 60
     data_load_threads: int = 8
@@ -75,6 +82,7 @@ class Configer:
             value = getattr(self, key)
             if not key.startswith("_") and not key.startswith("config_vars") and not isinstance(value, Callable):
                 self.config_vars[key] = value
+        self.hooks = {}
         self.load()
 
     def load(self):
@@ -106,6 +114,7 @@ class Configer:
             content = json.dumps(config_vars_cov, indent=2)
         except TypeError as e:
             logger.error(f"保存配置时出错: 无法转换此数据类型至json -> {e}")
+            logger.error(f"配置 -> {config_vars_cov}")
             return f"无法转换数据类型至json -> {e}"
         try:
             with open("./config.json", "w") as f:
@@ -119,6 +128,13 @@ class Configer:
         """设置配置项的值"""
         self.config_vars[key] = value
         setattr(self, key, value)
+        if key in self.hooks:
+            self.hooks[key](key, value)
+
+    def hook_configs(self, cbk: Callable[[str, Any], None], *names: str):
+        """注册配置项, 引起回调"""
+        for name in names:
+            self.hooks[name] = cbk
 
 
 config = Configer()

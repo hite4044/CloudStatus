@@ -3,15 +3,16 @@
 提供 在线人数图表 的GUI定义文件
 """
 from bisect import bisect_right
-from time import localtime, strftime, time, perf_counter
+from time import localtime, strftime, perf_counter
 
+import wx
 from matplotlib import pyplot as plt
 from matplotlib import rcParams as mpl_rcParams
 from matplotlib.backends import backend_wxagg as wxagg
 from matplotlib.dates import DateFormatter
 from matplotlib.figure import Figure
 from matplotlib.ticker import Formatter
-from matplotlib.transforms import TransformedBbox
+from matplotlib.transforms import Bbox
 
 from gui.events import *
 from gui.widget import *
@@ -266,7 +267,8 @@ class CapList(wx.Panel):
         show_lines = self.cap_list.GetSize()[1] // self.line_height
         line = self.point_id_mapping[point.id_]
         self.cap_list.Select(line)
-        self.cap_list.ScrollList(0, (line - show_lines // 2 - self.cap_list.GetScrollPos(wx.VERTICAL)) * self.line_height)
+        self.cap_list.ScrollList(0,
+                                 (line - show_lines // 2 - self.cap_list.GetScrollPos(wx.VERTICAL)) * self.line_height)
 
 
 class DataJumper(wx.Panel):
@@ -342,43 +344,71 @@ class Plot(wxagg.FigureCanvasWxAgg):
         super().__init__(parent, wx.ID_ANY, Figure(tight_layout=True))
         self.activate_filter = DataFilter()
 
-        axes = self.figure.gca()
-        axes.set_title("在线人数")
-        axes.set_xlabel("时间")
-        axes.set_ylabel("在线人数")
-        self.raw_datas: dict[float, ServerPoint] = {}
-        self.datas: dict[float, ServerPoint] = {}
-        self.showing_datas: dict[float, ServerPoint] = {}
-        self.axes = axes
-        self.offset: int = 0  # 当前显示的起始索引
-        self.scale: float = 1.0  # 显示的数据占总数据的百分比
-        self.start_drag: int = 0  # 拖动起始位置
-        self.start_offset: int = 0  # 拖动开始时候的偏移量
+        # 创建图表
+        self.set_control_color()
+        config.hook_configs(self.set_control_color, "plot_fg_color", "plot_bg_color", "plot_grid_color")
+        config.hook_configs(self.line_config_cbk, "plot_line_color", "plot_line_width","plot_line_alpha")
+
+        # 初始化数据
+        self.raw_datas: dict[float, ServerPoint] = {}  # 全部数据点
+        self.datas: dict[float, ServerPoint] = {}  # 展示的数据点 (不包含缩放)
+        self.axes = self.figure.gca()
+        self.offset: float = 0.0  # 当前显示的起始索引
+        self.scale: float = 1.0  # 缩放大小
+        self.drag_start_x: int = 0  # 拖动起始位置
+        self.drag_start_offset: float = 0.0  # 拖动开始时候的偏移量
         self.last_point_time = 0  # 上一个数据点的时间
         self.active_mouse_point: ServerPoint | None = None
+
         self.draw_call = wx.CallLater(50, self.draw_plot)
         self.draw_plot()
         self.Bind(wx.EVT_MOUSE_EVENTS, self.control_plot)
         self.tooltip = ToolTip(self, "")  # 创建工具提示
 
+        self.tooltip.label.SetForegroundColour(wx.Colour(int(config.plot_fg_color[1:], base=16)))
+        self.tooltip.SetBackgroundColour(wx.Colour(int(config.plot_bg_color[1:], base=16)))
+
+    def set_control_color(self, *_):
+        axes = self.figure.gca()
+        # axes.set_title("在线人数", color=config.plot_fg_color)
+        axes.set_xlabel("时间", color=config.plot_fg_color)
+        axes.set_ylabel("在线人数", color=config.plot_fg_color)
+        axes.tick_params(axis='x', colors=config.plot_fg_color)
+        axes.tick_params(axis='y', colors=config.plot_fg_color)
+        axes.set_facecolor(config.plot_bg_color)
+        axes.grid(True, color=config.plot_grid_color)
+        self.figure.set_facecolor(config.plot_bg_color)
+        self.figure.set_edgecolor(config.plot_fg_color)
+        self.figure.canvas.draw()
+
+    def line_config_cbk(self, *_):
+        self.draw_plot()
+
     def on_mouse_move(self, x: int, y: int):
-        if not self.showing_datas:
+        if not self.datas:
             return
-        if not self.GetScreenRect().Contains(x + self.GetScreenPosition()[0], y + self.GetScreenPosition()[1]):
+        # 检测鼠标指针是否是否在图表控件内
+        if not self.GetClientRect().Contains(x, y):
             self.tooltip.set_tip("")
             return
-        box: TransformedBbox = self.axes.get_window_extent()
-        percent = (x - round(box.x0)) / (round(box.x1) - round(box.x0))
-        if percent < 0 or percent > 1:
+
+        # 计算鼠标位置在图表中的百分比
+        box: Bbox = self.axes.get_window_extent()
+        percent = (x - round(box.x0)) / (round(box.x1) - round(box.x0))  # 鼠标x坐标在图表中的百分比
+        if percent < 0 or percent > 1:  # 超出范围不予受理
             self.tooltip.set_tip("")
             return
-        times = sorted(self.showing_datas.keys())
+
+        # 获取距离该百分比最近的数据点
+        real_percent = percent * self.scale - self.offset
+        times = sorted(self.datas.keys())
         min_time = min(times)
-        exact_time = (max(times) - min_time) * percent + min_time
+        exact_time = min_time + (max(times) - min_time) * real_percent
         index = bisect_right(times, exact_time)
         closest_time = times[index - 1]
-        point = self.active_mouse_point = self.showing_datas[closest_time]
+        point = self.active_mouse_point = self.datas[closest_time]
 
+        # 格式化数据点显示ToolTip
         time_str = datetime.fromtimestamp(closest_time).strftime('%Y-%m-%d %H:%M:%S')
         players = ""
         for i, player in enumerate(point.players):
@@ -392,6 +422,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.tooltip.set_tip(tooltip_text)
 
     def update_filter(self, filter_: DataFilter):
+        """更新数据点过滤器"""
         self.activate_filter = filter_
         self.datas = {p.time: p for p in filter_.filter_points(self.raw_datas)}  # 根据筛选条件更新数据
         if filter_.from_time is not None:
@@ -407,18 +438,21 @@ class Plot(wxagg.FigureCanvasWxAgg):
         滚轮缩放和拖动
         """
         event.Skip()
-        if event.LeftDown():
-            self.start_drag = event.GetX()
-            self.start_offset = self.offset * 1
+        if event.LeftDown():  # 开始拖动图表
+            self.drag_start_x = event.GetX()
+            self.drag_start_offset = self.offset
             self.tooltip.set_tip("")
             return
-        elif event.Dragging():
-            if self.start_drag == 0:
+        elif event.Dragging():  # 拖动图表中...
+            if self.drag_start_x == 0:
                 return
-            mouse_offset = (self.start_drag - event.GetX()) * self.scale / 2  # 考虑缩放比例
-            self.offset = self.start_offset + int(mouse_offset / self.scale * 4)
+            box: Bbox = self.axes.get_window_extent()
+            plot_width = round(box.x1 - box.x0)
+            drag_distance_percent = (self.drag_start_x - event.GetX()) / plot_width
+            real_percent = drag_distance_percent / self.scale
+            self.offset = self.drag_start_offset + real_percent
         elif event.LeftUp():
-            self.start_drag = self.start_offset = 0
+            self.drag_start_x = self.drag_start_offset = 0
             self.on_mouse_move(event.GetX(), event.GetY())
         elif event.RightDown():
             if self.active_mouse_point:
@@ -426,22 +460,23 @@ class Plot(wxagg.FigureCanvasWxAgg):
                 event.SetEventObject(self)
                 self.ProcessEvent(event)
         elif event.GetWheelRotation():
-            last_scale = self.scale + 1 - 1
+            last_scale = self.scale
             if event.GetWheelRotation() > 0:
-                self.scale *= 0.9  # 放大
-                self.offset += int(len(self.datas) * (last_scale - self.scale) / 2)
+                self.scale /= 0.9  # 放大
+                if not self.scale >= config.plot_max_scale:
+                    self.offset += (1 / last_scale - 1 / self.scale) / 2
             else:
-                self.scale *= 1.1  # 缩小
-                self.offset -= int(len(self.datas) * (self.scale - last_scale) / 2)
+                self.scale *= 0.9  # 缩小
+                self.offset -= (1 / self.scale - 1 / last_scale) / 2
         elif event.Moving():
             self.on_mouse_move(event.GetX(), event.GetY())
             return
         else:
             return
-        self.offset = clamp(self.offset, 0, int(len(self.datas) * (1 - self.scale)))
-        self.scale = clamp(self.scale, 0, 1)
+        self.offset = round(clamp(self.offset, 0, 1 - (1 / self.scale)), 5)
+        self.scale = round(clamp(self.scale, 1, config.plot_max_scale), 5)
         logger.debug(f"起始偏移: {self.offset}, 缩放: {self.scale}")
-        self.draw_plot()
+        self.update_scale()
 
     def load_point(self, point: ServerPoint, runtime_add: bool = False):
         """
@@ -449,14 +484,15 @@ class Plot(wxagg.FigureCanvasWxAgg):
         :param point: 数据点
         :param runtime_add: 是否为运行时添加, 以便自动滚动图表
         """
-        before_length = len(self.datas)
         self.add_data(point)
+        # 自动滚动
+        if runtime_add and round(self.offset + self.scale, 3) == 1:
+            self.offset = 1 - (1 / self.scale)
+        # 启动刷新计时器
         if self.draw_call.IsRunning():
             self.draw_call.Restart()
         elif runtime_add:
             self.draw_call.Start()
-        if runtime_add:
-            self.offset += len(self.datas) - before_length  # 自动滚动
 
     def add_data(self, point: ServerPoint, fix_add: bool = False):
         """
@@ -474,38 +510,57 @@ class Plot(wxagg.FigureCanvasWxAgg):
 
     def points_init(self, points: list[ServerPoint]):
         """
-        用数据点初始化图表
+        用存储的数据点初始化图表
         :param points: 数据点列表
         """
         self.raw_datas = {p.time: p for p in points}
         self.datas = {p.time: p for p in points}
         self.last_point_time = points[-1].time if points else time()
-        self.scale = 0.15
-        self.offset = int(len(self.datas) * (1 - self.scale))
+        self.scale = 1 / 0.15
+        self.offset = 1 - (1 / self.scale)
         self.draw_plot()
 
+    def update_scale(self):
+        """更新图表缩放范围"""
+        if not self.datas:
+            return
+        min_time = min(self.datas.keys())
+        max_time = max(self.datas.keys())
+        size = max_time - min_time
+        in_pt = min_time + size * self.offset
+        out_pt = in_pt + size / self.scale
+
+        # 设置 X 轴范围
+        self.axes.set_xlim(datetime.fromtimestamp(in_pt), datetime.fromtimestamp(out_pt))
+
+        # 计算当前可视区域内数据的 Y 轴范围
+        visible_times = [t for t in self.datas.keys() if in_pt <= t <= out_pt]
+        if visible_times:
+            visible_values = [self.datas[t].online for t in visible_times]
+            y_min, y_max = min(visible_values), max(visible_values)
+            margin = (y_max - y_min) * 0.1  # 添加 10% 边距
+            self.axes.set_ylim(y_min - margin, y_max + margin)
+
+        # 重新绘制图表
+        self.axes.relim(visible_only=True)
+        self.figure.canvas.draw()
+
     def draw_plot(self):
-        """
-        根据目前数据绘制图表
-        """
+        """绘制图表"""
         if not self.datas:
             return
         self.axes.cla()
-        self.axes.grid(True)
-        start, stop = self.offset, self.offset + int(len(self.datas) * self.scale)
-        self.showing_datas = slice_dict(self.datas, start, stop)
-        if len(self.showing_datas) == 0:
+        self.axes.grid(True, color=config.plot_grid_color)
+        if len(self.datas) == 0:  # 没有数据就退出
             return
-        self.axes.set_xlim(datetime.fromtimestamp(min(self.showing_datas.keys())),
-                           datetime.fromtimestamp(max(self.showing_datas.keys())))
         self.axes.plot(
-            [datetime.fromtimestamp(t) for t in self.showing_datas.keys()],
-            [p.online for p in self.showing_datas.values()],
-            color="#31AAC6", linewidth=1.5, alpha=0.8
+            [datetime.fromtimestamp(t) for t in self.datas.keys()],
+            [p.online for p in self.datas.values()],
+            color=config.plot_line_color, linewidth=config.plot_line_width, alpha=config.plot_line_alpha
         )
         self.axes.xaxis.set_major_formatter(DateFormatter('%d %H:%M'))
         self.axes.yaxis.set_major_formatter(UniqueIntFormatter())
-        self.figure.canvas.draw()
+        self.update_scale()
 
 
 class ProgressShower(wx.Panel):
