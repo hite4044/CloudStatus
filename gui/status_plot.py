@@ -358,7 +358,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.drag_start_x: int = 0  # 拖动起始位置
         self.drag_start_offset: float = 0.0  # 拖动开始时候的偏移量
         self.last_point_time = 0  # 上一个数据点的时间
-        self.active_mouse_point: ServerPoint | None = None
+        self.active_mouse_point: ServerPoint | None = None  # 目前ToolTip展示的数据点
 
         self.draw_call = wx.CallLater(50, self.draw_plot)
         self.draw_plot()
@@ -384,7 +384,13 @@ class Plot(wxagg.FigureCanvasWxAgg):
     def line_config_cbk(self, *_):
         self.draw_plot()
 
+    @property
+    def crt_range(self):
+        """目前展示图表区域占整个图表的比例"""
+        return 1 / self.scale
+
     def on_mouse_move(self, x: int, y: int):
+        """ToolTip的显示更新"""
         if not self.datas:
             return
         # 检测鼠标指针是否是否在图表控件内
@@ -400,7 +406,8 @@ class Plot(wxagg.FigureCanvasWxAgg):
             return
 
         # 获取距离该百分比最近的数据点
-        real_percent = percent * self.scale - self.offset
+        real_percent = self.offset + percent * self.crt_range
+        print(real_percent)
         times = sorted(self.datas.keys())
         min_time = min(times)
         exact_time = min_time + (max(times) - min_time) * real_percent
@@ -418,7 +425,9 @@ class Plot(wxagg.FigureCanvasWxAgg):
                 players += f"{player.name}\n"
             else:
                 players += f"{player.name}, "
-        tooltip_text = f"""时间: {time_str}\n玩家: \n{players}"""
+        tooltip_text = f"时间: {time_str}\n人数: {point.online}"
+        if point.players:
+            tooltip_text += f"\n玩家: \n{players}"
         self.tooltip.set_tip(tooltip_text)
 
     def update_filter(self, filter_: DataFilter):
@@ -451,7 +460,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
             drag_distance_percent = (self.drag_start_x - event.GetX()) / plot_width
             real_percent = drag_distance_percent / self.scale
             self.offset = self.drag_start_offset + real_percent
-        elif event.LeftUp():
+        elif event.LeftUp():  # 拖放结束
             self.drag_start_x = self.drag_start_offset = 0
             self.on_mouse_move(event.GetX(), event.GetY())
         elif event.RightDown():
@@ -473,7 +482,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
             return
         else:
             return
-        self.offset = round(clamp(self.offset, 0, 1 - (1 / self.scale)), 5)
+        self.offset = round(clamp(self.offset, 0, 1 - self.crt_range), 5)
         self.scale = round(clamp(self.scale, 1, config.plot_max_scale), 5)
         logger.debug(f"起始偏移: {self.offset}, 缩放: {self.scale}")
         self.update_scale()
@@ -486,8 +495,8 @@ class Plot(wxagg.FigureCanvasWxAgg):
         """
         self.add_data(point)
         # 自动滚动
-        if runtime_add and round(self.offset + 1 / self.scale, 3) == 1:
-            self.offset = 1 - (1 / self.scale)
+        if runtime_add and round(self.offset + self.crt_range, 3) == 1:
+            self.offset = 1 - self.crt_range
         # 启动刷新计时器
         if self.draw_call.IsRunning():
             self.draw_call.Restart()
@@ -517,7 +526,7 @@ class Plot(wxagg.FigureCanvasWxAgg):
         self.datas = {p.time: p for p in points}
         self.last_point_time = points[-1].time if points else time()
         self.scale = 1 / 0.15
-        self.offset = 1 - (1 / self.scale)
+        self.offset = 1 - self.crt_range
         self.draw_plot()
 
     def update_scale(self):
