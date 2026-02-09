@@ -407,7 +407,6 @@ class Plot(wxagg.FigureCanvasWxAgg):
 
         # 获取距离该百分比最近的数据点
         real_percent = self.offset + percent * self.crt_range
-        print(real_percent)
         times = sorted(self.datas.keys())
         min_time = min(times)
         exact_time = min_time + (max(times) - min_time) * real_percent
